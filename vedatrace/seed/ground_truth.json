@@ -1,0 +1,432 @@
+{
+  "benign_household_devices": [
+    {
+      "accounts": [
+        "ACC-2277",
+        "ACC-1522",
+        "ACC-2289"
+      ],
+      "device": "DEV-0353"
+    },
+    {
+      "accounts": [
+        "ACC-2049",
+        "ACC-1429"
+      ],
+      "device": "DEV-0354"
+    },
+    {
+      "accounts": [
+        "ACC-1724",
+        "ACC-1818"
+      ],
+      "device": "DEV-0355"
+    },
+    {
+      "accounts": [
+        "ACC-1866",
+        "ACC-2145"
+      ],
+      "device": "DEV-0356"
+    },
+    {
+      "accounts": [
+        "ACC-1976",
+        "ACC-1180",
+        "ACC-2030"
+      ],
+      "device": "DEV-0357"
+    },
+    {
+      "accounts": [
+        "ACC-2251",
+        "ACC-1131",
+        "ACC-2356"
+      ],
+      "device": "DEV-0358"
+    },
+    {
+      "accounts": [
+        "ACC-1795",
+        "ACC-2358"
+      ],
+      "device": "DEV-0359"
+    },
+    {
+      "accounts": [
+        "ACC-1923",
+        "ACC-1748"
+      ],
+      "device": "DEV-0360"
+    },
+    {
+      "accounts": [
+        "ACC-1977",
+        "ACC-1701",
+        "ACC-1557"
+      ],
+      "device": "DEV-0361"
+    },
+    {
+      "accounts": [
+        "ACC-1799",
+        "ACC-2002",
+        "ACC-2159"
+      ],
+      "device": "DEV-0362"
+    },
+    {
+      "accounts": [
+        "ACC-1988",
+        "ACC-1465",
+        "ACC-1848"
+      ],
+      "device": "DEV-0363"
+    },
+    {
+      "accounts": [
+        "ACC-1251",
+        "ACC-2189"
+      ],
+      "device": "DEV-0364"
+    },
+    {
+      "accounts": [
+        "ACC-1725",
+        "ACC-2294"
+      ],
+      "device": "DEV-0365"
+    },
+    {
+      "accounts": [
+        "ACC-2192",
+        "ACC-2029",
+        "ACC-2198"
+      ],
+      "device": "DEV-0366"
+    },
+    {
+      "accounts": [
+        "ACC-1128",
+        "ACC-2158"
+      ],
+      "device": "DEV-0367"
+    },
+    {
+      "accounts": [
+        "ACC-2360",
+        "ACC-1108"
+      ],
+      "device": "DEV-0368"
+    },
+    {
+      "accounts": [
+        "ACC-1649",
+        "ACC-1158"
+      ],
+      "device": "DEV-0369"
+    },
+    {
+      "accounts": [
+        "ACC-1565",
+        "ACC-2476",
+        "ACC-1904"
+      ],
+      "device": "DEV-0370"
+    },
+    {
+      "accounts": [
+        "ACC-1667",
+        "ACC-2103"
+      ],
+      "device": "DEV-0371"
+    },
+    {
+      "accounts": [
+        "ACC-1450",
+        "ACC-1265",
+        "ACC-1744"
+      ],
+      "device": "DEV-0372"
+    },
+    {
+      "accounts": [
+        "ACC-1434",
+        "ACC-2427"
+      ],
+      "device": "DEV-0373"
+    },
+    {
+      "accounts": [
+        "ACC-1845",
+        "ACC-1608",
+        "ACC-1696"
+      ],
+      "device": "DEV-0374"
+    },
+    {
+      "accounts": [
+        "ACC-2008",
+        "ACC-1049"
+      ],
+      "device": "DEV-0375"
+    },
+    {
+      "accounts": [
+        "ACC-2463",
+        "ACC-2364"
+      ],
+      "device": "DEV-0376"
+    },
+    {
+      "accounts": [
+        "ACC-1228",
+        "ACC-2326"
+      ],
+      "device": "DEV-0377"
+    },
+    {
+      "accounts": [
+        "ACC-1409",
+        "ACC-1824",
+        "ACC-1752"
+      ],
+      "device": "DEV-0378"
+    },
+    {
+      "accounts": [
+        "ACC-1337",
+        "ACC-1930",
+        "ACC-1330"
+      ],
+      "device": "DEV-0379"
+    },
+    {
+      "accounts": [
+        "ACC-2369",
+        "ACC-1894"
+      ],
+      "device": "DEV-0380"
+    },
+    {
+      "accounts": [
+        "ACC-2226",
+        "ACC-1645"
+      ],
+      "device": "DEV-0381"
+    },
+    {
+      "accounts": [
+        "ACC-2186",
+        "ACC-2380",
+        "ACC-1945"
+      ],
+      "device": "DEV-0382"
+    }
+  ],
+  "benign_office_devices": [
+    {
+      "accounts": [
+        "ACC-1297",
+        "ACC-1298",
+        "ACC-1545",
+        "ACC-2160",
+        "ACC-2174"
+      ],
+      "device": "DEV-0383"
+    },
+    {
+      "accounts": [
+        "ACC-1800",
+        "ACC-2168",
+        "ACC-1331",
+        "ACC-2083",
+        "ACC-2348"
+      ],
+      "device": "DEV-0384"
+    },
+    {
+      "accounts": [
+        "ACC-1996",
+        "ACC-2155",
+        "ACC-1796",
+        "ACC-1311",
+        "ACC-1089"
+      ],
+      "device": "DEV-0385"
+    },
+    {
+      "accounts": [
+        "ACC-1312",
+        "ACC-1278",
+        "ACC-2270",
+        "ACC-2469",
+        "ACC-2254"
+      ],
+      "device": "DEV-0386"
+    },
+    {
+      "accounts": [
+        "ACC-1063",
+        "ACC-1446",
+        "ACC-1150",
+        "ACC-2188",
+        "ACC-2378"
+      ],
+      "device": "DEV-0387"
+    },
+    {
+      "accounts": [
+        "ACC-2421",
+        "ACC-1365",
+        "ACC-2051",
+        "ACC-1734",
+        "ACC-1493"
+      ],
+      "device": "DEV-0388"
+    }
+  ],
+  "benign_rent_cycles": [
+    [
+      "ACC-1906",
+      "ACC-2202"
+    ],
+    [
+      "ACC-1576",
+      "ACC-1309"
+    ],
+    [
+      "ACC-1378",
+      "ACC-2248"
+    ],
+    [
+      "ACC-2330",
+      "ACC-2099"
+    ],
+    [
+      "ACC-1823",
+      "ACC-2340"
+    ],
+    [
+      "ACC-1250",
+      "ACC-2297"
+    ],
+    [
+      "ACC-1683",
+      "ACC-1421"
+    ],
+    [
+      "ACC-1062",
+      "ACC-2465"
+    ]
+  ],
+  "benign_split_cycle": [
+    "ACC-2012",
+    "ACC-1105",
+    "ACC-1432"
+  ],
+  "device_cluster_member": "ACC-2312",
+  "flagship_tx": "TX-FLAGSHIP",
+  "hub": "ACC-1039",
+  "intermediaries": [
+    "ACC-2087",
+    "ACC-1030"
+  ],
+  "marketplace_account": "ACC-1051",
+  "marketplace_sellers": [
+    "ACC-1616",
+    "ACC-2438",
+    "ACC-2022",
+    "ACC-1000",
+    "ACC-1377",
+    "ACC-1682",
+    "ACC-1496",
+    "ACC-1717",
+    "ACC-2122",
+    "ACC-2010",
+    "ACC-1972",
+    "ACC-2232",
+    "ACC-2148",
+    "ACC-2373",
+    "ACC-1328",
+    "ACC-1685",
+    "ACC-1344",
+    "ACC-1982"
+  ],
+  "mules": [
+    "ACC-2119",
+    "ACC-2390",
+    "ACC-1439",
+    "ACC-1578",
+    "ACC-2501",
+    "ACC-2207",
+    "ACC-1211",
+    "ACC-1371"
+  ],
+  "payroll_account": "ACC-2088",
+  "payroll_employees": [
+    "ACC-2245",
+    "ACC-1106",
+    "ACC-1357",
+    "ACC-2135",
+    "ACC-1806",
+    "ACC-1218",
+    "ACC-1415",
+    "ACC-1142",
+    "ACC-2244",
+    "ACC-1813",
+    "ACC-1242",
+    "ACC-2070",
+    "ACC-2414",
+    "ACC-2357",
+    "ACC-1463",
+    "ACC-2392",
+    "ACC-1529",
+    "ACC-1573",
+    "ACC-1296",
+    "ACC-1186",
+    "ACC-1962",
+    "ACC-1470",
+    "ACC-1014",
+    "ACC-2284",
+    "ACC-1262",
+    "ACC-1464",
+    "ACC-2397",
+    "ACC-2042",
+    "ACC-1638",
+    "ACC-1877",
+    "ACC-1448",
+    "ACC-1323",
+    "ACC-1615",
+    "ACC-1187",
+    "ACC-1008",
+    "ACC-1034",
+    "ACC-1650",
+    "ACC-1582",
+    "ACC-1144",
+    "ACC-1310",
+    "ACC-1899",
+    "ACC-2240",
+    "ACC-2334",
+    "ACC-1199",
+    "ACC-1528",
+    "ACC-1617",
+    "ACC-1867",
+    "ACC-1907",
+    "ACC-1778",
+    "ACC-1393",
+    "ACC-2040",
+    "ACC-1274",
+    "ACC-1520",
+    "ACC-1102",
+    "ACC-1527",
+    "ACC-2309",
+    "ACC-1118",
+    "ACC-2399",
+    "ACC-1787",
+    "ACC-1619"
+  ],
+  "sender": "ACC-1358",
+  "shared_device": "DEV-0389",
+  "size": "demo"
+}

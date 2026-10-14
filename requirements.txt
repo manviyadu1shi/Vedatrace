@@ -1,0 +1,9 @@
+python-dotenv
+anthropic
+falkordb
+openai
+fastapi
+uvicorn[standard]
+pytest
+httpx
+sse-starlette
