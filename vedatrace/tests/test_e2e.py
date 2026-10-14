@@ -17,7 +17,7 @@ def test_end_to_end_discovers_ring_and_reports():
     g = get_db().select_graph(GRAPH)
     results, seqs = [], []
     for i in range(runs):
-        res = run_once("demo", graph=GRAPH, reset=(i == 0), quiet=True)
+        res = run_once("demo", graph=GRAPH, reset=True, quiet=True)
         d = chk.discovery(g, res["investigation"])
         ok_cit, unresolved = chk.report_citations_ok(g, res["report"])
         seqs.append(chk.step_sequence(g, res["investigation"]))
@@ -30,5 +30,4 @@ def test_end_to_end_discovers_ring_and_reports():
     assert all(x["provenance"] and x["citations"] for x in results)
     assert not any(x["red_herring_violations"] for x in results)
     assert len(passed) == runs
-    if runs > 1:
-        assert len({tuple(s) for s in seqs}) > 1 or True  # step order is model-chosen; recorded for the report
+    print("DISTINCT STEP SEQUENCES:", len({tuple(s) for s in seqs}), "of", runs)  # step order is chosen by the model, not by code

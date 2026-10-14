@@ -115,6 +115,7 @@ class ToolBox:
         self.inv = investigation_id
         self.step_id = None  # set by the investigator before each call (provenance for writers)
         self.finished = None
+        self.notable = {}  # (evidence kind, node id) -> why a tool flagged it; the investigator is reminded of unresolved ones at finish
         self.seen = set()  # node ids that appeared in tool results; evidence may only cite ids the agent has actually seen
 
     # ---- helpers -------------------------------------------------
@@ -181,6 +182,7 @@ class ToolBox:
             owners = {o["owner"] for o in others if not o["same_owner"]}
             if owners:
                 d["cite_ids"] = [d["device"]] + [o["account"] for o in d["other_accounts"]]
+                self.notable[("SHARED_DEVICE", d["device"])] = f"{d['device']} shared by accounts of different customers ({account_id} and {[o['account'] for o in others]})"
                 interp.append(f"{d['device']} is also used by {len(others)} other account(s) owned by {len(owners)} different customer(s): "
                               f"{[o['account'] for o in others]}.")
         return dict(account=account_id, devices_used=mine, interpretation=interp or ["No device shared with a different customer."],
@@ -247,6 +249,10 @@ class ToolBox:
         if assessment["amounts_tightly_clustered"]:
             interp.append(f"Burst amounts are tightly clustered between {min(am)} and {top}: compare with policy thresholds (list_policies); "
                           "if just below a threshold also record STRUCTURING_AMOUNTS evidence with the same cite ids.")
+        if assessment["unusual_burst"]:
+            self.notable[("RAPID_FANOUT", account_id)] = f"{account_id} unusual burst: {counts[-1]} distinct recipients within {w / 86400:g} days"
+        if assessment["amounts_tightly_clustered"]:
+            self.notable[("STRUCTURING_AMOUNTS", account_id)] = f"{account_id} burst amounts tightly clustered ({min(am)}-{top})"
         cite = [account_id] + [t[0] for t in best[:12]]
         res = dict(account=account_id, window_days=w / 86400, interpretation=interp, assessment=assessment,
                    cite_ids_for_burst=cite, outgoing_tx=len(txs),
@@ -304,6 +310,8 @@ class ToolBox:
         cycles = [dict(accounts=accs[:-1], hops=len(accs) - 1, shape="reciprocal_exchange" if len(accs) <= 3 else "multi_hop_loop",
                        cite_ids=accs[:-1] + txs, min_amount_on_cycle=minamt, parallel_tx_variants=var)
                   for accs, txs, minamt, var in rows]
+        if any(c["shape"] == "multi_hop_loop" for c in cycles):
+            self.notable[("CIRCULAR_FLOW", account_id)] = f"{account_id} sits on multi-hop money loop(s) returning to itself"
         if cycles:
             n_loop = sum(1 for c in cycles if c["shape"] == "multi_hop_loop")
             interp = [f"{len(cycles)} distinct cycle route(s) returning to {account_id}: {n_loop} multi-hop loop(s) through 3+ accounts, "

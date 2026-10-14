@@ -123,9 +123,9 @@ class Investigator:
                     sid = self._record_step(inv, seq, tc.name, {k: v for k, v in tc.arguments.items() if k != "reason"}, reason)
                     tb.step_id = sid
                     try:
-                        if tc.name == "finish" and reflections < 2:
+                        if tc.name == "finish" and reflections < 3:
                             reflections += 1
-                            raise ToolError(self._reflection(inv))
+                            raise ToolError(self._reflection(inv, tb))
                         result = tb.call(tc.name, dict(tc.arguments))
                         ok, content = True, json.dumps(result, default=str)
                     except ToolError as e:
@@ -163,7 +163,7 @@ class Investigator:
         self._emit(type="finished", investigation=inv, status=status, summary=tb.finished, steps=seq)
         return inv
 
-    def _reflection(self, inv):
+    def _reflection(self, inv, tb):
         """Generic self-review prompt built from graph state: what has been recorded, and which leads were seen but not explored."""
         q = lambda c: self.g.ro_query(c, params={"inv": inv}).result_set
         ev = q("MATCH (:Investigation {id:$inv})-[:HAS_STEP]->(:Step)-[:PRODUCED]->(e:Evidence) RETURN e.id, e.kind ORDER BY e.id")
@@ -185,7 +185,14 @@ class Investigator:
         leads = {r[0] for r in shared} - fanned
         loose = q("MATCH (:Investigation {id:$inv})-[:HAS_STEP]->(:Step)-[:PRODUCED]->(e:Evidence) WHERE NOT (:Pattern)-[:BACKED_BY]->(e) "
                   "AND e.kind <> 'BENIGN_EXPLANATION' RETURN e.id, e.kind ORDER BY e.id")
+        recorded = {(k, n) for k, n in self.g.ro_query(
+            "MATCH (:Investigation {id:$inv})-[:HAS_STEP]->(:Step)-[:PRODUCED]->(e:Evidence)-[:SUPPORTED_BY]->(n) RETURN e.kind, n.id",
+            params={"inv": inv}).result_set}
+        nodes_with_evidence = {n for _, n in recorded}
+        unresolved = [f"{kind}: {why}" for (kind, key), why in tb.notable.items() if key not in nodes_with_evidence]
         msg = ("Self-review before finishing. "
+               f"Tool results flagged these notable findings that no Evidence yet cites: {unresolved or 'none'}. Record each as Evidence "
+               "(from the tool's cite_ids), or as BENIGN_EXPLANATION with a basis if it is legitimate, or leave it out only if the data does not support it. "
                f"Evidence not yet grouped into any Pattern: {[f'{i}:{k}' for i, k in loose] or 'none'} (each structure needs a write_pattern; one pattern per kind). "
                f"Evidence so far: {[f'{i}:{k}' for i, k in ev] or 'none'}. Patterns so far: {[f'{i}:{k}' for i, k in pat] or 'none'}. "
                f"Accounts whose fan-out you have not analyzed but that are device-linked to accounts you examined: {sorted(leads) or 'none'}. "

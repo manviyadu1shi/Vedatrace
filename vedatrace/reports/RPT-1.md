@@ -1,54 +1,65 @@
 # AML Investigation Report: TX-FLAGSHIP
 *Investigation INV-1 · status finished · produced by ollama/qwen2.5:14b*  
-*Alerted transaction TX-FLAGSHIP: ACC-1358 → ACC-1039, amount 8400.0*
+*Alerted transaction TX-FLAGSHIP: ACC-1913 → ACC-2106, amount 8400.0*
 
 ## Recommendation: **ESCALATE** (confidence 0.90)
-The evidence strongly supports the involvement in layering and structuring activities, which are key indicators of money laundering. [PAT-1] -> [POL-LAYERING], [PAT-1] -> [POL-STRUCTURING]
+The presence of multiple suspicious patterns, including circular flow, rapid fan-out, and structuring, strongly indicates potential money laundering activity. The similarity to prior case [CASE-H1], which was escalated, further supports this assessment.
 
 **A human analyst makes the final decision.** This report is decision support generated from graph evidence; it does not constitute a determination of wrongdoing.
 
 ## Executive summary
-The investigation of transaction TX-FLAGSHIP flagged for potential money laundering activity revealed that the sender (ACC-1358) and receiver (ACC-1039) share a device (DEV-0389) and are involved in multiple 5-hop cycles with tightly clustered amounts, indicative of layering and structuring below reporting thresholds. [EV-1], [EV-3], [PAT-1]
+The investigation of transaction TX-FLAGSHIP revealed suspicious patterns indicative of money laundering. The transaction is part of a circular flow involving multiple accounts and transactions, and the receiver account ACC-2106 exhibits rapid fan-out and structuring behavior. These patterns align with policies for layering, rapid fan-out, and structuring.
 
 ## Findings
-### [PAT-1] CIRCULAR_FLOW (confidence 0.9)
-The sender (ACC-1358) and receiver (ACC-1039) are involved in multiple 5-hop cycles with tightly clustered amounts
-- [EV-1] **SHARED_DEVICE**: The sender (ACC-1358) and receiver (ACC-1039) share a device (DEV-0389) — supported by [ACC-1039], [ACC-1358], [ACC-2312], [DEV-0389]
-- [EV-3] **CIRCULAR_FLOW**: The sender (ACC-1358) and receiver (ACC-1039) are involved in multiple 5-hop cycles with tightly clustered amounts — supported by [ACC-1039], [ACC-1211], [ACC-1358], [ACC-1371], [ACC-1439], [ACC-1578], [ACC-2119], [ACC-2207], [ACC-2390], [ACC-2501], [TX-05523], [TX-05533], [TX-05543], [TX-05549], [TX-05554], [TX-05559], [TX-05575], [TX-05576], [TX-05578], [TX-05581], [TX-05597], [TX-05607], [TX-05609], [TX-05612], [TX-05622], [TX-05639], [TX-05674], [TX-05681], [TX-05731], [TX-FLAGSHIP]
-- Violates [POL-LAYERING] *Layering through circular fund movement* (severity HIGH, confidence 0.90): The pattern involves multiple 5-hop cycles with tightly clustered amounts, which is indicative of layering through circular fund movement.
-- Violates [POL-SHARED-DEVICE] *Undisclosed device sharing across unrelated customers* (severity MEDIUM, confidence 0.90): The evidence shows that the sender and receiver share a device, which is a key component of the pattern.
-- Violates [POL-STRUCTURING] *Structuring below reporting threshold* (severity HIGH, confidence 0.90): The pattern includes a burst of transfers with tightly clustered amounts just under a review threshold, which is indicative of structuring below reporting threshold.
+### [PAT-1] RAPID_FANOUT (confidence 0.9)
+Receiver account ACC-2106 engaged in rapid fan-out behavior with 8 distinct recipients within a 7-day window.
+- [EV-1] **RAPID_FANOUT**: Receiver account ACC-2106 shows rapid fan-out behavior with 8 distinct recipients within 7 days, far above typical behavior of 0 recipients per window. — supported by [ACC-2106], [TX-05530], [TX-05538], [TX-05552], [TX-05566], [TX-05583], [TX-05588], [TX-05613], [TX-05625]
+- Violates [POL-RAPID-FANOUT] *Rapid fan-out to many recipients* (severity HIGH, confidence 0.90): Pattern PAT-1 describes a rapid fan-out behavior where receiver account ACC-2106 engaged in rapid distribution of funds to 8 distinct recipients within a 7-day window, which matches the description of POL-RAPID-FANOUT.
+
+### [PAT-2] STRUCTURING (confidence 0.9)
+Receiver account ACC-2106 engaged in structuring with tightly clustered amounts just below review thresholds.
+- [EV-2] **STRUCTURING_AMOUNTS**: Receiver account ACC-2106 shows structuring behavior with tightly clustered amounts between $958.65 and $988.82, likely to avoid review thresholds. — supported by [ACC-2106], [TX-05530], [TX-05538], [TX-05552], [TX-05566], [TX-05583], [TX-05588], [TX-05613], [TX-05625]
+- Violates [POL-STRUCTURING] *Structuring below reporting threshold* (severity HIGH, confidence 0.90): Pattern PAT-2 indicates structuring behavior with tightly clustered amounts just below review thresholds, which aligns with the definition of POL-STRUCTURING.
+
+### [PAT-3] CIRCULAR_FLOW (confidence 0.9)
+Funds originating from ACC-1913 were sent to ACC-2106 and then redistributed through several intermediary accounts before returning to ACC-1913.
+- [EV-3] **CIRCULAR_FLOW**: Funds originating from ACC-1913 were sent to ACC-2106 and then redistributed through several intermediary accounts before returning to ACC-1913. — supported by [TX-05530], [TX-05541], [TX-05686], [TX-05738], [TX-FLAGSHIP]
+- Violates [POL-LAYERING] *Layering through circular fund movement* (severity HIGH, confidence 0.90): Pattern PAT-3 describes a circular flow of funds originating from ACC-1913, passing through ACC-2106 and several intermediary accounts before returning to ACC-1913, which is indicative of layering as per POL-LAYERING.
 
 ## Analysis
-The sender and receiver are involved in multiple 5-hop cycles with tightly clustered amounts, which is indicative of layering through circular fund movement. Additionally, the receiver has a burst of transfers with tightly clustered amounts just under a review threshold, indicative of structuring below reporting thresholds. [EV-2], [EV-3], [PAT-1]
+The alerted transaction TX-FLAGSHIP is part of a circular flow pattern [EV-3] where funds originating from ACC-1913 were sent to ACC-2106 and then redistributed through several intermediary accounts before returning to ACC-1913 [PAT-3]. This behavior is indicative of layering as per policy [POL-LAYERING]. Additionally, receiver account ACC-2106 shows rapid fan-out behavior with 8 distinct recipients within a 7-day window [EV-1, PAT-1] and structuring with tightly clustered amounts just below review thresholds [EV-2, PAT-2], matching policies for rapid fan-out [POL-RAPID-FANOUT] and structuring [POL-STRUCTURING]. No additional suspicious patterns were found in the fan-out behavior of the device-linked accounts ACC-1370 and ACC-1625. This case is most similar to [CASE-H1], where a device-linked hub account engaged in rapid fan-out and structuring, leading to an escalation.
 
 ## What was ruled out
 No benign explanations were recorded by the Investigator.
 
-## Evidence not attached to a pattern
-- [EV-2] **STRUCTURING_AMOUNTS**: The receiver (ACC-1039) has a burst of 8 transfers to distinct recipients with tightly clustered amounts just under a review threshold — supported by [ACC-1039], [TX-05523], [TX-05533], [TX-05549], [TX-05559], [TX-05576], [TX-05581], [TX-05607], [TX-05612]
+## Prior cases recalled from memory
+- [CASE-H1] **ESCALATED** — Hub account fan-out ring (escalated) *(synthetic demo history)*
+- [CASE-H3] **CLEAR** — Payroll account with large recurring fan-out (cleared) *(synthetic demo history)*
+- [CASE-H2] **CLEAR** — Household device and bill-splitting (cleared) *(synthetic demo history)*
 
 ## Reasoning path (Investigator steps)
-1. [INV-1-S01] `get_transaction` — To understand the details of the alerted transaction
-2. [INV-1-S02] `get_account_profile` — To understand the profile of the sender account
-3. [INV-1-S03] `get_account_profile` — To understand the profile of the receiver account
-4. [INV-1-S04] `find_shared_devices` — To check if the sender and receiver share any devices
-5. [INV-1-S05] `find_shared_devices` — To check if the sender and receiver share any devices
-6. [INV-1-S06] `analyze_fanout` — To check if the sender has a pattern of rapid fanout or structuring behavior
-7. [INV-1-S07] `analyze_fanout` — To check if the receiver has a pattern of rapid fanout or structuring behavior
-8. [INV-1-S08] `write_evidence` — To document the shared device finding
-9. [INV-1-S09] `write_evidence` — To document the structuring behavior of the receiver
-10. [INV-1-S10] `trace_flow` — To trace the flow of money from the sender after the alerted transaction
-11. [INV-1-S11] `trace_flow` — To trace the flow of money from the receiver after the alerted transaction
-12. [INV-1-S12] `find_cycles` — To find any money cycles involving the sender
-13. [INV-1-S13] `find_cycles` — To find any money cycles involving the receiver
-14. [INV-1-S14] `write_evidence` — To document the circular flow involving the sender and receiver
-15. [INV-1-S15] `write_pattern` *(rejected/error)* — (no reason given)
-16. [INV-1-S16] `finish` *(rejected/error)* — To conclude the investigation and summarize findings.
-17. [INV-1-S17] `write_pattern` — To group the shared device and circular flow evidence into a pattern
-18. [INV-1-S18] `analyze_fanout` — To check if the device-linked account has a pattern of rapid fanout or structuring behavior
-19. [INV-1-S19] `finish` *(rejected/error)* — To conclude the investigation and summarize findings.
-20. [INV-1-S20] `finish` — To conclude the investigation and summarize findings.
+1. [INV-1-S01] `get_transaction` — To understand the details of the alerted transaction, including sender, receiver, amount, time, and monitoring score.
+2. [INV-1-S02] `get_account_profile` — To gather information about the sender account ACC-1913, including its owner, devices, activity history, and transaction volumes.
+3. [INV-1-S03] `get_account_profile` — To gather information about the receiver account ACC-2106, including its owner, devices, activity history, and transaction volumes.
+4. [INV-1-S04] `find_shared_devices` — To determine if the sender and receiver accounts share any devices, which could indicate potential money laundering activity.
+5. [INV-1-S05] `find_shared_devices` — To determine if the sender and receiver accounts share any devices, which could indicate potential money laundering activity.
+6. [INV-1-S06] `analyze_fanout` — To check if the sender and receiver accounts exhibit rapid fan-out or structuring behavior.
+7. [INV-1-S07] `analyze_fanout` — To check if the receiver account exhibits rapid fan-out or structuring behavior.
+8. [INV-1-S08] `write_evidence` — To document the unusual recipient burst behavior of the receiver account.
+9. [INV-1-S09] `write_evidence` — To document the structuring behavior of the receiver account.
+10. [INV-1-S10] `write_pattern` — To document the rapid fan-out behavior of the receiver account.
+11. [INV-1-S11] `write_pattern` — To document the structuring behavior of the receiver account.
+12. [INV-1-S12] `trace_flow` — To trace the flow of money after the receiver account ACC-2106 to identify any suspicious activity such as circular flow or redistribution.
+13. [INV-1-S13] `write_evidence` *(rejected/error)* — To document the circular flow pattern observed in the trace flow analysis.
+14. [INV-1-S14] `find_cycles` — To identify the circular flow involving the sender and receiver accounts.
+15. [INV-1-S15] `find_cycles` — To identify the circular flow involving the receiver account.
+16. [INV-1-S16] `write_evidence` — Confirmed by find_cycles tool results.
+17. [INV-1-S17] `write_pattern` — Confirmed by find_cycles tool results.
+18. [INV-1-S18] `finish` *(rejected/error)* — To conclude the investigation after confirming the suspicious activity through the circular flow pattern.
+19. [INV-1-S19] `analyze_fanout` — To check if ACC-1370 has any unusual recipient bursts or tightly clustered amounts.
+20. [INV-1-S20] `analyze_fanout` — To check if ACC-1625 has any unusual recipient bursts or tightly clustered amounts.
+21. [INV-1-S21] `finish` *(rejected/error)* — All suspicious patterns have been identified and recorded. No additional suspicious activity was found in the fan-out behavior of device-linked accounts.
+22. [INV-1-S22] `finish` — All evidence and patterns have been recorded and verified. No additional suspicious patterns were found in the fan-out behavior of the device-linked accounts.
 
 ---
 **A human analyst makes the final decision.** This report is decision support generated from graph evidence; it does not constitute a determination of wrongdoing.

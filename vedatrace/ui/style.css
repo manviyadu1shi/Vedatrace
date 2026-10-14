@@ -45,7 +45,7 @@ button.ghost{background:transparent}
 .findings{display:flex;flex-direction:column;gap:6px;margin:6px 0}
 .finding{border-left:3px solid var(--c-evidence);background:var(--panel2);padding:5px 9px;border-radius:0 6px 6px 0;font-size:12.5px;animation:in .25s ease-out;cursor:pointer}
 .finding.pattern{border-color:var(--c-pattern)}.finding.benign{border-color:var(--ok)}.finding b{font-size:11.5px;letter-spacing:.3px}
-.report{overflow:auto;flex:1;font-size:13.5px;min-height:0}
+.report{font-size:13.5px}#report-panel{overflow:auto}h2.sub{margin-top:14px}
 .report h1{font-size:17px}.report h2{font-size:15px;color:var(--text);text-transform:none;letter-spacing:0;margin:14px 0 4px;border-bottom:1px solid var(--line);padding-bottom:3px}
 .report h3{font-size:13.5px;margin:10px 0 3px}.report code{background:var(--panel2);padding:1px 4px;border-radius:4px}.report ul,.report ol{padding-left:18px}
 .report a.cite{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#12263a;border-radius:4px;padding:0 3px}

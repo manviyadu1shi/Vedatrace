@@ -3,17 +3,36 @@
   "target_tx": "TX-FLAGSHIP",
   "recommendation": "ESCALATE",
   "confidence": 0.9,
-  "executive_summary": "The investigation of transaction TX-FLAGSHIP flagged for potential money laundering activity revealed that the sender (ACC-1358) and receiver (ACC-1039) share a device (DEV-0389) and are involved in multiple 5-hop cycles with tightly clustered amounts, indicative of layering and structuring below reporting thresholds. [EV-1], [EV-3], [PAT-1]",
-  "analysis": "The sender and receiver are involved in multiple 5-hop cycles with tightly clustered amounts, which is indicative of layering through circular fund movement. Additionally, the receiver has a burst of transfers with tightly clustered amounts just under a review threshold, indicative of structuring below reporting thresholds. [EV-2], [EV-3], [PAT-1]",
+  "executive_summary": "The investigation of transaction TX-FLAGSHIP revealed suspicious patterns indicative of money laundering. The transaction is part of a circular flow involving multiple accounts and transactions, and the receiver account ACC-2106 exhibits rapid fan-out and structuring behavior. These patterns align with policies for layering, rapid fan-out, and structuring.",
+  "analysis": "The alerted transaction TX-FLAGSHIP is part of a circular flow pattern [EV-3] where funds originating from ACC-1913 were sent to ACC-2106 and then redistributed through several intermediary accounts before returning to ACC-1913 [PAT-3]. This behavior is indicative of layering as per policy [POL-LAYERING]. Additionally, receiver account ACC-2106 shows rapid fan-out behavior with 8 distinct recipients within a 7-day window [EV-1, PAT-1] and structuring with tightly clustered amounts just below review thresholds [EV-2, PAT-2], matching policies for rapid fan-out [POL-RAPID-FANOUT] and structuring [POL-STRUCTURING]. No additional suspicious patterns were found in the fan-out behavior of the device-linked accounts ACC-1370 and ACC-1625. This case is most similar to [CASE-H1], where a device-linked hub account engaged in rapid fan-out and structuring, leading to an escalation.",
   "patterns": [
     {
       "id": "PAT-1",
+      "type": "RAPID_FANOUT",
+      "summary": "Receiver account ACC-2106 engaged in rapid fan-out behavior with 8 distinct recipients within a 7-day window.",
+      "confidence": 0.9,
+      "step": "INV-1-S10",
+      "evidence": [
+        "EV-1"
+      ]
+    },
+    {
+      "id": "PAT-2",
+      "type": "STRUCTURING",
+      "summary": "Receiver account ACC-2106 engaged in structuring with tightly clustered amounts just below review thresholds.",
+      "confidence": 0.9,
+      "step": "INV-1-S11",
+      "evidence": [
+        "EV-2"
+      ]
+    },
+    {
+      "id": "PAT-3",
       "type": "CIRCULAR_FLOW",
-      "summary": "The sender (ACC-1358) and receiver (ACC-1039) are involved in multiple 5-hop cycles with tightly clustered amounts",
+      "summary": "Funds originating from ACC-1913 were sent to ACC-2106 and then redistributed through several intermediary accounts before returning to ACC-1913.",
       "confidence": 0.9,
       "step": "INV-1-S17",
       "evidence": [
-        "EV-1",
         "EV-3"
       ]
     }
@@ -21,71 +40,51 @@
   "evidence": [
     {
       "id": "EV-1",
-      "kind": "SHARED_DEVICE",
-      "summary": "The sender (ACC-1358) and receiver (ACC-1039) share a device (DEV-0389)",
-      "confidence": 0.9,
+      "kind": "RAPID_FANOUT",
+      "summary": "Receiver account ACC-2106 shows rapid fan-out behavior with 8 distinct recipients within 7 days, far above typical behavior of 0 recipients per window.",
+      "confidence": 0.8,
       "step": "INV-1-S08",
       "supports": [
-        "ACC-1039",
-        "ACC-1358",
-        "ACC-2312",
-        "DEV-0389"
+        "ACC-2106",
+        "TX-05530",
+        "TX-05538",
+        "TX-05552",
+        "TX-05566",
+        "TX-05583",
+        "TX-05588",
+        "TX-05613",
+        "TX-05625"
       ]
     },
     {
       "id": "EV-2",
       "kind": "STRUCTURING_AMOUNTS",
-      "summary": "The receiver (ACC-1039) has a burst of 8 transfers to distinct recipients with tightly clustered amounts just under a review threshold",
-      "confidence": 0.9,
+      "summary": "Receiver account ACC-2106 shows structuring behavior with tightly clustered amounts between $958.65 and $988.82, likely to avoid review thresholds.",
+      "confidence": 0.8,
       "step": "INV-1-S09",
       "supports": [
-        "ACC-1039",
-        "TX-05523",
-        "TX-05533",
-        "TX-05549",
-        "TX-05559",
-        "TX-05576",
-        "TX-05581",
-        "TX-05607",
-        "TX-05612"
+        "ACC-2106",
+        "TX-05530",
+        "TX-05538",
+        "TX-05552",
+        "TX-05566",
+        "TX-05583",
+        "TX-05588",
+        "TX-05613",
+        "TX-05625"
       ]
     },
     {
       "id": "EV-3",
       "kind": "CIRCULAR_FLOW",
-      "summary": "The sender (ACC-1358) and receiver (ACC-1039) are involved in multiple 5-hop cycles with tightly clustered amounts",
+      "summary": "Funds originating from ACC-1913 were sent to ACC-2106 and then redistributed through several intermediary accounts before returning to ACC-1913.",
       "confidence": 0.9,
-      "step": "INV-1-S14",
+      "step": "INV-1-S16",
       "supports": [
-        "ACC-1039",
-        "ACC-1211",
-        "ACC-1358",
-        "ACC-1371",
-        "ACC-1439",
-        "ACC-1578",
-        "ACC-2119",
-        "ACC-2207",
-        "ACC-2390",
-        "ACC-2501",
-        "TX-05523",
-        "TX-05533",
-        "TX-05543",
-        "TX-05549",
-        "TX-05554",
-        "TX-05559",
-        "TX-05575",
-        "TX-05576",
-        "TX-05578",
-        "TX-05581",
-        "TX-05597",
-        "TX-05607",
-        "TX-05609",
-        "TX-05612",
-        "TX-05622",
-        "TX-05639",
-        "TX-05674",
-        "TX-05681",
-        "TX-05731",
+        "TX-05530",
+        "TX-05541",
+        "TX-05686",
+        "TX-05738",
         "TX-FLAGSHIP"
       ]
     }
@@ -93,20 +92,20 @@
   "policy_matches": [
     {
       "pattern": "PAT-1",
-      "policy": "POL-LAYERING",
-      "rationale": "The pattern involves multiple 5-hop cycles with tightly clustered amounts, which is indicative of layering through circular fund movement.",
+      "policy": "POL-RAPID-FANOUT",
+      "rationale": "Pattern PAT-1 describes a rapid fan-out behavior where receiver account ACC-2106 engaged in rapid distribution of funds to 8 distinct recipients within a 7-day window, which matches the description of POL-RAPID-FANOUT.",
       "confidence": 0.9
     },
     {
-      "pattern": "PAT-1",
-      "policy": "POL-SHARED-DEVICE",
-      "rationale": "The evidence shows that the sender and receiver share a device, which is a key component of the pattern.",
-      "confidence": 0.9
-    },
-    {
-      "pattern": "PAT-1",
+      "pattern": "PAT-2",
       "policy": "POL-STRUCTURING",
-      "rationale": "The pattern includes a burst of transfers with tightly clustered amounts just under a review threshold, which is indicative of structuring below reporting threshold.",
+      "rationale": "Pattern PAT-2 indicates structuring behavior with tightly clustered amounts just below review thresholds, which aligns with the definition of POL-STRUCTURING.",
+      "confidence": 0.9
+    },
+    {
+      "pattern": "PAT-3",
+      "policy": "POL-LAYERING",
+      "rationale": "Pattern PAT-3 describes a circular flow of funds originating from ACC-1913, passing through ACC-2106 and several intermediary accounts before returning to ACC-1913, which is indicative of layering as per POL-LAYERING.",
       "confidence": 0.9
     }
   ],
@@ -115,136 +114,140 @@
       "id": "INV-1-S01",
       "seq": 1,
       "tool": "get_transaction",
-      "reason": "To understand the details of the alerted transaction"
+      "reason": "To understand the details of the alerted transaction, including sender, receiver, amount, time, and monitoring score."
     },
     {
       "id": "INV-1-S02",
       "seq": 2,
       "tool": "get_account_profile",
-      "reason": "To understand the profile of the sender account"
+      "reason": "To gather information about the sender account ACC-1913, including its owner, devices, activity history, and transaction volumes."
     },
     {
       "id": "INV-1-S03",
       "seq": 3,
       "tool": "get_account_profile",
-      "reason": "To understand the profile of the receiver account"
+      "reason": "To gather information about the receiver account ACC-2106, including its owner, devices, activity history, and transaction volumes."
     },
     {
       "id": "INV-1-S04",
       "seq": 4,
       "tool": "find_shared_devices",
-      "reason": "To check if the sender and receiver share any devices"
+      "reason": "To determine if the sender and receiver accounts share any devices, which could indicate potential money laundering activity."
     },
     {
       "id": "INV-1-S05",
       "seq": 5,
       "tool": "find_shared_devices",
-      "reason": "To check if the sender and receiver share any devices"
+      "reason": "To determine if the sender and receiver accounts share any devices, which could indicate potential money laundering activity."
     },
     {
       "id": "INV-1-S06",
       "seq": 6,
       "tool": "analyze_fanout",
-      "reason": "To check if the sender has a pattern of rapid fanout or structuring behavior"
+      "reason": "To check if the sender and receiver accounts exhibit rapid fan-out or structuring behavior."
     },
     {
       "id": "INV-1-S07",
       "seq": 7,
       "tool": "analyze_fanout",
-      "reason": "To check if the receiver has a pattern of rapid fanout or structuring behavior"
+      "reason": "To check if the receiver account exhibits rapid fan-out or structuring behavior."
     },
     {
       "id": "INV-1-S08",
       "seq": 8,
       "tool": "write_evidence",
-      "reason": "To document the shared device finding"
+      "reason": "To document the unusual recipient burst behavior of the receiver account."
     },
     {
       "id": "INV-1-S09",
       "seq": 9,
       "tool": "write_evidence",
-      "reason": "To document the structuring behavior of the receiver"
+      "reason": "To document the structuring behavior of the receiver account."
     },
     {
       "id": "INV-1-S10",
       "seq": 10,
-      "tool": "trace_flow",
-      "reason": "To trace the flow of money from the sender after the alerted transaction"
+      "tool": "write_pattern",
+      "reason": "To document the rapid fan-out behavior of the receiver account."
     },
     {
       "id": "INV-1-S11",
       "seq": 11,
-      "tool": "trace_flow",
-      "reason": "To trace the flow of money from the receiver after the alerted transaction"
+      "tool": "write_pattern",
+      "reason": "To document the structuring behavior of the receiver account."
     },
     {
       "id": "INV-1-S12",
       "seq": 12,
-      "tool": "find_cycles",
-      "reason": "To find any money cycles involving the sender"
+      "tool": "trace_flow",
+      "reason": "To trace the flow of money after the receiver account ACC-2106 to identify any suspicious activity such as circular flow or redistribution."
     },
     {
       "id": "INV-1-S13",
       "seq": 13,
-      "tool": "find_cycles",
-      "reason": "To find any money cycles involving the receiver"
+      "tool": "write_evidence",
+      "reason": "To document the circular flow pattern observed in the trace flow analysis."
     },
     {
       "id": "INV-1-S14",
       "seq": 14,
-      "tool": "write_evidence",
-      "reason": "To document the circular flow involving the sender and receiver"
+      "tool": "find_cycles",
+      "reason": "To identify the circular flow involving the sender and receiver accounts."
     },
     {
       "id": "INV-1-S15",
       "seq": 15,
-      "tool": "write_pattern",
-      "reason": ""
+      "tool": "find_cycles",
+      "reason": "To identify the circular flow involving the receiver account."
     },
     {
       "id": "INV-1-S16",
       "seq": 16,
-      "tool": "finish",
-      "reason": "To conclude the investigation and summarize findings."
+      "tool": "write_evidence",
+      "reason": "Confirmed by find_cycles tool results."
     },
     {
       "id": "INV-1-S17",
       "seq": 17,
       "tool": "write_pattern",
-      "reason": "To group the shared device and circular flow evidence into a pattern"
+      "reason": "Confirmed by find_cycles tool results."
     },
     {
       "id": "INV-1-S18",
       "seq": 18,
-      "tool": "analyze_fanout",
-      "reason": "To check if the device-linked account has a pattern of rapid fanout or structuring behavior"
+      "tool": "finish",
+      "reason": "To conclude the investigation after confirming the suspicious activity through the circular flow pattern."
     },
     {
       "id": "INV-1-S19",
       "seq": 19,
-      "tool": "finish",
-      "reason": "To conclude the investigation and summarize findings."
+      "tool": "analyze_fanout",
+      "reason": "To check if ACC-1370 has any unusual recipient bursts or tightly clustered amounts."
     },
     {
       "id": "INV-1-S20",
       "seq": 20,
+      "tool": "analyze_fanout",
+      "reason": "To check if ACC-1625 has any unusual recipient bursts or tightly clustered amounts."
+    },
+    {
+      "id": "INV-1-S21",
+      "seq": 21,
       "tool": "finish",
-      "reason": "To conclude the investigation and summarize findings."
+      "reason": "All suspicious patterns have been identified and recorded. No additional suspicious activity was found in the fan-out behavior of device-linked accounts."
+    },
+    {
+      "id": "INV-1-S22",
+      "seq": 22,
+      "tool": "finish",
+      "reason": "All evidence and patterns have been recorded and verified. No additional suspicious patterns were found in the fan-out behavior of the device-linked accounts."
     }
   ],
   "citations": [
-    "ACC-1039",
-    "ACC-1211",
-    "ACC-1358",
-    "ACC-1371",
-    "ACC-1439",
-    "ACC-1578",
-    "ACC-2119",
-    "ACC-2207",
-    "ACC-2312",
-    "ACC-2390",
-    "ACC-2501",
-    "DEV-0389",
+    "ACC-2106",
+    "CASE-H1",
+    "CASE-H2",
+    "CASE-H3",
     "EV-1",
     "EV-2",
     "EV-3",
@@ -268,29 +271,25 @@
     "INV-1-S18",
     "INV-1-S19",
     "INV-1-S20",
+    "INV-1-S21",
+    "INV-1-S22",
     "PAT-1",
+    "PAT-2",
+    "PAT-3",
     "POL-LAYERING",
-    "POL-SHARED-DEVICE",
+    "POL-RAPID-FANOUT",
     "POL-STRUCTURING",
-    "TX-05523",
-    "TX-05533",
-    "TX-05543",
-    "TX-05549",
-    "TX-05554",
-    "TX-05559",
-    "TX-05575",
-    "TX-05576",
-    "TX-05578",
-    "TX-05581",
-    "TX-05597",
-    "TX-05607",
-    "TX-05609",
-    "TX-05612",
-    "TX-05622",
-    "TX-05639",
-    "TX-05674",
-    "TX-05681",
-    "TX-05731",
+    "TX-05530",
+    "TX-05538",
+    "TX-05541",
+    "TX-05552",
+    "TX-05566",
+    "TX-05583",
+    "TX-05588",
+    "TX-05613",
+    "TX-05625",
+    "TX-05686",
+    "TX-05738",
     "TX-FLAGSHIP"
   ],
   "human_decision_note": "**A human analyst makes the final decision.** This report is decision support generated from graph evidence; it does not constitute a determination of wrongdoing.",

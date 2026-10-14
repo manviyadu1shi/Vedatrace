@@ -194,9 +194,12 @@ def graphiti_add(case_id, text, reference_time=None):
 
     async def go():
         c = await _graphiti_ready()
-        r = await c.add_episode(name=case_id, episode_body=text, source_description="VedaTrace case summary",
-                                reference_time=reference_time or datetime.now(timezone.utc), group_id=GROUP_ID)
-        return r.episode.uuid
+        try:
+            r = await c.add_episode(name=case_id, episode_body=text, source_description="VedaTrace case summary",
+                                    reference_time=reference_time or datetime.now(timezone.utc), group_id=GROUP_ID)
+            return r.episode.uuid
+        finally:
+            await c.close()
 
     try:
         return _run(go(), GRAPHITI_TIMEOUT)
@@ -212,7 +215,10 @@ def graphiti_search(query, k=3):
 
     async def go():
         c = await _graphiti_ready()
-        return [e.fact for e in await c.search(query, group_ids=[GROUP_ID], num_results=k)]
+        try:
+            return [e.fact for e in await c.search(query, group_ids=[GROUP_ID], num_results=k)]
+        finally:
+            await c.close()
 
     try:
         _graphiti_state["tried"] = True
