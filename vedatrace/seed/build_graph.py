@@ -214,7 +214,13 @@ class Builder:
         D_shared = self.new_device("mobile")
         for acc in (S, H, K):
             self.link(acc, D_shared)
-        self.link(S, self.new_device("desktop"))  # S also has a personal device, like anyone
+        S_home = self.new_device("desktop")
+        self.link(S, S_home)  # S also has a personal home device, shared with a household member (legitimate)
+        spouse = self.new_account(self.new_customer(), "savings", 1300)
+        self.link(spouse, S_home)
+        for _ in range(5):
+            self.tx(S, spouse, r.uniform(150, 700), self.rand_ts(0, 55))
+            self.tx(spouse, S, r.uniform(50, 300), self.rand_ts(0, 55))
         mules = [self.new_account(self.new_customer(), "checking", r.randint(9, 26)) for _ in range(8)]
         inter = [self.new_account(self.new_customer(), "checking", r.randint(200, 700)) for _ in range(2)]
         for m in mules:
@@ -243,6 +249,10 @@ class Builder:
         for m in mules:
             for _ in range(2):
                 self.tx(r.choice(normal), m, self.normal_amount(), self.rand_ts(55, 61))
+        # K is also an employee of the payroll account: the ring neighbourhood touches a legitimate high-fan-out payer
+        for m in range(3):
+            self.tx(payroll_acc, K, r.uniform(1800, 5200), BASE_TS + (3 + 29 * m) * DAY + r.uniform(8, 11) * HOUR, channel="bank_wire")
+        t.update(benign_household_near_ring=dict(device=S_home, accounts=[S, spouse]), payroll_employee_in_ring=K)
         t.update(flagship_tx="TX-FLAGSHIP", sender=S, hub=H, device_cluster_member=K,
                  shared_device=D_shared, mules=mules, intermediaries=inter)
 

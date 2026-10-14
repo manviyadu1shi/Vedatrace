@@ -7,3 +7,4 @@ uvicorn[standard]
 pytest
 httpx
 sse-starlette
+ollama

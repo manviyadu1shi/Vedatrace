@@ -1,0 +1,298 @@
+{
+  "investigation": "INV-1",
+  "target_tx": "TX-FLAGSHIP",
+  "recommendation": "ESCALATE",
+  "confidence": 0.9,
+  "executive_summary": "The investigation of transaction TX-FLAGSHIP flagged for potential money laundering activity revealed that the sender (ACC-1358) and receiver (ACC-1039) share a device (DEV-0389) and are involved in multiple 5-hop cycles with tightly clustered amounts, indicative of layering and structuring below reporting thresholds. [EV-1], [EV-3], [PAT-1]",
+  "analysis": "The sender and receiver are involved in multiple 5-hop cycles with tightly clustered amounts, which is indicative of layering through circular fund movement. Additionally, the receiver has a burst of transfers with tightly clustered amounts just under a review threshold, indicative of structuring below reporting thresholds. [EV-2], [EV-3], [PAT-1]",
+  "patterns": [
+    {
+      "id": "PAT-1",
+      "type": "CIRCULAR_FLOW",
+      "summary": "The sender (ACC-1358) and receiver (ACC-1039) are involved in multiple 5-hop cycles with tightly clustered amounts",
+      "confidence": 0.9,
+      "step": "INV-1-S17",
+      "evidence": [
+        "EV-1",
+        "EV-3"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "EV-1",
+      "kind": "SHARED_DEVICE",
+      "summary": "The sender (ACC-1358) and receiver (ACC-1039) share a device (DEV-0389)",
+      "confidence": 0.9,
+      "step": "INV-1-S08",
+      "supports": [
+        "ACC-1039",
+        "ACC-1358",
+        "ACC-2312",
+        "DEV-0389"
+      ]
+    },
+    {
+      "id": "EV-2",
+      "kind": "STRUCTURING_AMOUNTS",
+      "summary": "The receiver (ACC-1039) has a burst of 8 transfers to distinct recipients with tightly clustered amounts just under a review threshold",
+      "confidence": 0.9,
+      "step": "INV-1-S09",
+      "supports": [
+        "ACC-1039",
+        "TX-05523",
+        "TX-05533",
+        "TX-05549",
+        "TX-05559",
+        "TX-05576",
+        "TX-05581",
+        "TX-05607",
+        "TX-05612"
+      ]
+    },
+    {
+      "id": "EV-3",
+      "kind": "CIRCULAR_FLOW",
+      "summary": "The sender (ACC-1358) and receiver (ACC-1039) are involved in multiple 5-hop cycles with tightly clustered amounts",
+      "confidence": 0.9,
+      "step": "INV-1-S14",
+      "supports": [
+        "ACC-1039",
+        "ACC-1211",
+        "ACC-1358",
+        "ACC-1371",
+        "ACC-1439",
+        "ACC-1578",
+        "ACC-2119",
+        "ACC-2207",
+        "ACC-2390",
+        "ACC-2501",
+        "TX-05523",
+        "TX-05533",
+        "TX-05543",
+        "TX-05549",
+        "TX-05554",
+        "TX-05559",
+        "TX-05575",
+        "TX-05576",
+        "TX-05578",
+        "TX-05581",
+        "TX-05597",
+        "TX-05607",
+        "TX-05609",
+        "TX-05612",
+        "TX-05622",
+        "TX-05639",
+        "TX-05674",
+        "TX-05681",
+        "TX-05731",
+        "TX-FLAGSHIP"
+      ]
+    }
+  ],
+  "policy_matches": [
+    {
+      "pattern": "PAT-1",
+      "policy": "POL-LAYERING",
+      "rationale": "The pattern involves multiple 5-hop cycles with tightly clustered amounts, which is indicative of layering through circular fund movement.",
+      "confidence": 0.9
+    },
+    {
+      "pattern": "PAT-1",
+      "policy": "POL-SHARED-DEVICE",
+      "rationale": "The evidence shows that the sender and receiver share a device, which is a key component of the pattern.",
+      "confidence": 0.9
+    },
+    {
+      "pattern": "PAT-1",
+      "policy": "POL-STRUCTURING",
+      "rationale": "The pattern includes a burst of transfers with tightly clustered amounts just under a review threshold, which is indicative of structuring below reporting threshold.",
+      "confidence": 0.9
+    }
+  ],
+  "steps": [
+    {
+      "id": "INV-1-S01",
+      "seq": 1,
+      "tool": "get_transaction",
+      "reason": "To understand the details of the alerted transaction"
+    },
+    {
+      "id": "INV-1-S02",
+      "seq": 2,
+      "tool": "get_account_profile",
+      "reason": "To understand the profile of the sender account"
+    },
+    {
+      "id": "INV-1-S03",
+      "seq": 3,
+      "tool": "get_account_profile",
+      "reason": "To understand the profile of the receiver account"
+    },
+    {
+      "id": "INV-1-S04",
+      "seq": 4,
+      "tool": "find_shared_devices",
+      "reason": "To check if the sender and receiver share any devices"
+    },
+    {
+      "id": "INV-1-S05",
+      "seq": 5,
+      "tool": "find_shared_devices",
+      "reason": "To check if the sender and receiver share any devices"
+    },
+    {
+      "id": "INV-1-S06",
+      "seq": 6,
+      "tool": "analyze_fanout",
+      "reason": "To check if the sender has a pattern of rapid fanout or structuring behavior"
+    },
+    {
+      "id": "INV-1-S07",
+      "seq": 7,
+      "tool": "analyze_fanout",
+      "reason": "To check if the receiver has a pattern of rapid fanout or structuring behavior"
+    },
+    {
+      "id": "INV-1-S08",
+      "seq": 8,
+      "tool": "write_evidence",
+      "reason": "To document the shared device finding"
+    },
+    {
+      "id": "INV-1-S09",
+      "seq": 9,
+      "tool": "write_evidence",
+      "reason": "To document the structuring behavior of the receiver"
+    },
+    {
+      "id": "INV-1-S10",
+      "seq": 10,
+      "tool": "trace_flow",
+      "reason": "To trace the flow of money from the sender after the alerted transaction"
+    },
+    {
+      "id": "INV-1-S11",
+      "seq": 11,
+      "tool": "trace_flow",
+      "reason": "To trace the flow of money from the receiver after the alerted transaction"
+    },
+    {
+      "id": "INV-1-S12",
+      "seq": 12,
+      "tool": "find_cycles",
+      "reason": "To find any money cycles involving the sender"
+    },
+    {
+      "id": "INV-1-S13",
+      "seq": 13,
+      "tool": "find_cycles",
+      "reason": "To find any money cycles involving the receiver"
+    },
+    {
+      "id": "INV-1-S14",
+      "seq": 14,
+      "tool": "write_evidence",
+      "reason": "To document the circular flow involving the sender and receiver"
+    },
+    {
+      "id": "INV-1-S15",
+      "seq": 15,
+      "tool": "write_pattern",
+      "reason": ""
+    },
+    {
+      "id": "INV-1-S16",
+      "seq": 16,
+      "tool": "finish",
+      "reason": "To conclude the investigation and summarize findings."
+    },
+    {
+      "id": "INV-1-S17",
+      "seq": 17,
+      "tool": "write_pattern",
+      "reason": "To group the shared device and circular flow evidence into a pattern"
+    },
+    {
+      "id": "INV-1-S18",
+      "seq": 18,
+      "tool": "analyze_fanout",
+      "reason": "To check if the device-linked account has a pattern of rapid fanout or structuring behavior"
+    },
+    {
+      "id": "INV-1-S19",
+      "seq": 19,
+      "tool": "finish",
+      "reason": "To conclude the investigation and summarize findings."
+    },
+    {
+      "id": "INV-1-S20",
+      "seq": 20,
+      "tool": "finish",
+      "reason": "To conclude the investigation and summarize findings."
+    }
+  ],
+  "citations": [
+    "ACC-1039",
+    "ACC-1211",
+    "ACC-1358",
+    "ACC-1371",
+    "ACC-1439",
+    "ACC-1578",
+    "ACC-2119",
+    "ACC-2207",
+    "ACC-2312",
+    "ACC-2390",
+    "ACC-2501",
+    "DEV-0389",
+    "EV-1",
+    "EV-2",
+    "EV-3",
+    "INV-1-S01",
+    "INV-1-S02",
+    "INV-1-S03",
+    "INV-1-S04",
+    "INV-1-S05",
+    "INV-1-S06",
+    "INV-1-S07",
+    "INV-1-S08",
+    "INV-1-S09",
+    "INV-1-S10",
+    "INV-1-S11",
+    "INV-1-S12",
+    "INV-1-S13",
+    "INV-1-S14",
+    "INV-1-S15",
+    "INV-1-S16",
+    "INV-1-S17",
+    "INV-1-S18",
+    "INV-1-S19",
+    "INV-1-S20",
+    "PAT-1",
+    "POL-LAYERING",
+    "POL-SHARED-DEVICE",
+    "POL-STRUCTURING",
+    "TX-05523",
+    "TX-05533",
+    "TX-05543",
+    "TX-05549",
+    "TX-05554",
+    "TX-05559",
+    "TX-05575",
+    "TX-05576",
+    "TX-05578",
+    "TX-05581",
+    "TX-05597",
+    "TX-05607",
+    "TX-05609",
+    "TX-05612",
+    "TX-05622",
+    "TX-05639",
+    "TX-05674",
+    "TX-05681",
+    "TX-05731",
+    "TX-FLAGSHIP"
+  ],
+  "human_decision_note": "**A human analyst makes the final decision.** This report is decision support generated from graph evidence; it does not constitute a determination of wrongdoing.",
+  "report_id": "RPT-1"
+}
