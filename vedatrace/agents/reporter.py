@@ -65,6 +65,8 @@ def load_case(g, inv_id):
     case["patterns"] = [dict(id=p[0], type=p[1], summary=p[2], confidence=p[3], step=p[4], evidence=p[5]) for p in pt]
     case["policies"] = [dict(id=p[0], title=p[1], description=p[2], severity=p[3]) for p in q(
         "MATCH (p:Policy) RETURN p.id, p.title, p.description, p.severity ORDER BY p.id")]
+    case["prior_cases"] = [dict(id=r[0], title=r[1], summary=r[2], outcome=r[3], origin=r[4]) for r in q(
+        "MATCH (:Investigation {id:$id})-[:RECALLED]->(p:PriorCase) RETURN p.id, p.title, p.summary, p.outcome, p.origin ORDER BY p.score DESC", {"id": inv_id})]
     tx = q("MATCH (a:Account)-[:SENT]->(t:Transaction {id:$t})-[:TO]->(b:Account) RETURN a.id, b.id, t.amount, t.ts", {"t": case["target_tx"]})
     case["target"] = dict(sender=tx[0][0], receiver=tx[0][1], amount=tx[0][2], ts=tx[0][3]) if tx else None
     return case
@@ -73,7 +75,7 @@ def load_case(g, inv_id):
 def resolve(g, node_id):
     """True if the cited id is a real node."""
     m = [("EV-", "Evidence"), ("PAT-", "Pattern"), ("POL-", "Policy"), ("ACC-", "Account"), ("TX-", "Transaction"),
-         ("DEV-", "Device"), ("CUST-", "Customer"), ("RPT-", "Report")]
+         ("DEV-", "Device"), ("CUST-", "Customer"), ("RPT-", "Report"), ("CASE-", "PriorCase")]
     for pre, lab in m:
         if node_id.startswith(pre):
             return bool(g.ro_query(f"MATCH (n:{lab} {{id:$id}}) RETURN n.id", params={"id": node_id}).result_set)
@@ -100,6 +102,10 @@ def context_text(case, mappings=None):
     lines.append("\nPATTERNS:")
     for p in case["patterns"]:
         lines.append(f"[{p['id']}] type={p['type']} conf={p['confidence']} backed_by={p['evidence']}: {p['summary']}")
+    if case.get("prior_cases"):
+        lines.append("\nPRIOR CASES RECALLED FROM MEMORY (historical context, not evidence about this transaction):")
+        for c in case["prior_cases"]:
+            lines.append(f"[{c['id']}] outcome={c['outcome']} {c['title']}: {c['summary'][:400]}")
     if mappings:
         lines.append("\nPOLICY MATCHES:")
         for m in mappings:
@@ -149,7 +155,9 @@ def write_narrative(g, case, mappings):
     prompt = (context_text(case, mappings) +
               "\n\nPolicies available: " + ", ".join(f"[{p['id']}]" for p in case["policies"]) +
               "\n\nWrite the narrative for the compliance report by calling submit_report. Cite ids in square brackets after each claim. "
-              "Mention what was ruled out as benign only if BENIGN_EXPLANATION evidence exists. Do not claim more than the evidence supports.")
+              "Mention what was ruled out as benign only if BENIGN_EXPLANATION evidence exists. Do not claim more than the evidence supports."
+              + (" If prior cases are listed, add one sentence in the analysis comparing this case to the most similar prior case, citing it as [CASE-...]; "
+                 "prior cases are context, never evidence." if case.get("prior_cases") else ""))
     system = "You write precise, auditable AML investigation reports grounded ONLY in the provided graph records."
     allowed = None
     for attempt in range(2):
@@ -173,7 +181,7 @@ def write_narrative(g, case, mappings):
 
 
 # ---- rendering ---------------------------------------------------------------------
-def render_markdown(case, mappings, narrative, prior_cases=None):
+def render_markdown(case, mappings, narrative):
     L = []
     t = case["target"]
     L.append(f"# AML Investigation Report: {case['target_tx']}")
@@ -223,9 +231,11 @@ def render_markdown(case, mappings, narrative, prior_cases=None):
         for e in loose:
             L.append(f"- [{e['id']}] **{e['kind']}**: {e['summary']} — supported by {', '.join(f'[{s}]' for s in e['supports'])}")
         L.append("")
-    if prior_cases:
+    if case.get("prior_cases"):
         L.append("## Prior cases recalled from memory")
-        L.extend(f"- {c}" for c in prior_cases)
+        for c in case["prior_cases"]:
+            tag = " *(synthetic demo history)*" if c["origin"] == "demo_history" else ""
+            L.append(f"- [{c['id']}] **{c['outcome']}** — {c['title']}{tag}")
         L.append("")
     L.append("## Reasoning path (Investigator steps)")
     for s in case["steps"]:
@@ -246,17 +256,18 @@ def persist(g, case, markdown, payload, cited):
              "conf": float(payload["confidence"])})
     g.query("MATCH (r:Report {id:$id}) UNWIND $ids AS x MATCH (n) WHERE n.id = x AND (n:Pattern OR n:Evidence OR n:Policy) "
             "MERGE (r)-[:CITES]->(n)", {"id": rid, "ids": cited})
+    g.query("MATCH (r:Report {id:$id}) UNWIND $ids AS x MATCH (n:PriorCase {id:x}) MERGE (r)-[:CITES]->(n)", {"id": rid, "ids": cited})
     return rid
 
 
-def build_report(investigation_id: str, graph=None, prior_cases=None) -> dict:
+def build_report(investigation_id: str, graph=None) -> dict:
     g = graph if graph is not None else get_graph()
     case = load_case(g, investigation_id)
     if case["status"] == "running":
         raise ReportError(f"Investigation {investigation_id} is still running.")
     mappings = map_policies(g, case)
     narrative = write_narrative(g, case, mappings)
-    md = render_markdown(case, mappings, narrative, prior_cases)
+    md = render_markdown(case, mappings, narrative)
     bad, cited = check_citations(g, md)
     if bad:
         raise ReportError(f"Unresolvable citations in final report: {bad}")
@@ -287,4 +298,10 @@ if __name__ == "__main__":
     with open(os.path.join(a.out, f"{res['report_id']}.json"), "w") as f:
         json.dump(res["json"], f, indent=2)
     print(res["markdown"])
+    try:  # memory is optional and runs after the report is safely persisted
+        from memory import graphiti_mem
+        m = graphiti_mem.remember(a.investigation)
+        print(f"\n[memory] {m}")
+    except Exception as e:
+        print(f"\n[memory] not stored: {type(e).__name__}: {e}")
     print(f"\nREPORT_ID={res['report_id']}")

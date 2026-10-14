@@ -54,7 +54,8 @@ def _compact(history, keep=KEEP_FULL_RESULTS):
 
 
 class Investigator:
-    def __init__(self, graph=None, on_event=None, max_steps=MAX_STEPS):
+    def __init__(self, graph=None, on_event=None, max_steps=MAX_STEPS, use_memory=True):
+        self.use_memory = use_memory
         self.g = graph if graph is not None else get_graph()
         self.on_event = on_event or (lambda e: None)
         self.max_steps = max_steps
@@ -86,7 +87,18 @@ class Investigator:
         self.g.query("MATCH (s:Step {id:$sid}) SET s.ok=$ok, s.result_summary=$sm", {"sid": sid, "ok": ok, "sm": summary[:600]})
 
     def run(self, tx_id: str, memory_context: str | None = None) -> str:
+        recall = None
+        if self.use_memory and memory_context is None:
+            try:  # memory is optional: any failure just means "no prior cases"
+                from memory import graphiti_mem
+                recall = graphiti_mem.recall(tx_id)
+                memory_context = graphiti_mem.prompt_block(recall) or None
+            except Exception as e:
+                print(f"[memory] disabled for this run: {type(e).__name__}: {e}")
         inv = self._new_investigation(tx_id, memory_context)
+        if recall and (recall["cases"] or recall["facts"]):
+            graphiti_mem.attach_recall_to_investigation(self.g, inv, recall)
+            self._emit(type="memory", investigation=inv, cases=[c["id"] for c in recall["cases"]])
         tb = ToolBox(self.g, inv)
         system = SYSTEM_PROMPT + (f"\nPrior cases from memory (may or may not apply; verify everything in the current graph):\n{memory_context}\n" if memory_context else "")
         history = [dict(role="user", content=f"Alerted transaction: {tx_id}. Investigate it. Start now.")]
@@ -198,6 +210,8 @@ def console(e):
     elif e["type"] == "step":
         flag = "" if e["ok"] else " (ERROR)"
         print(f"  {e['seq']:>2}. {e['tool']}{flag} — {e['reason'][:110]}\n      -> {e['summary'][:160]}")
+    elif e["type"] == "memory":
+        print(f"  (memory) recalled prior cases: {', '.join(e['cases'])}")
     elif e["type"] == "finished":
         print(f"[{e['investigation']}] {e['status']} after {e['steps']} steps: {(e['summary'] or '')[:300]}")
 
@@ -206,7 +220,8 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--tx", default="TX-FLAGSHIP")
     ap.add_argument("--max-steps", type=int, default=MAX_STEPS)
+    ap.add_argument("--no-memory", action="store_true")
     a = ap.parse_args()
     t = time.time()
-    inv = Investigator(on_event=console, max_steps=a.max_steps).run(a.tx)
+    inv = Investigator(on_event=console, max_steps=a.max_steps, use_memory=not a.no_memory).run(a.tx)
     print(f"INVESTIGATION_ID={inv} ({time.time() - t:.0f}s)")

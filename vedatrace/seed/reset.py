@@ -22,4 +22,9 @@ if __name__ == "__main__":
     a = ap.parse_args()
     t = time.time()
     stats = reset(a.size)
+    try:  # forget memories of investigations that no longer exist; keep the labelled demo history
+        from memory import graphiti_mem
+        graphiti_mem.reset_investigation_memory()
+    except Exception:
+        pass
     print(f"Seeded '{GRAPH_NAME}' ({a.size}) in {time.time() - t:.1f}s: {stats}")

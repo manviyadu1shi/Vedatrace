@@ -119,3 +119,13 @@ def _chat_ollama(messages, tools, system, max_tokens):
         args = dict(args) if isinstance(args, dict) else {"_malformed": str(args)}
         calls.append(ToolCall(f"call_{i}", tc.function.name, args))
     return LLMResponse(msg.content or "", calls)
+
+
+# ---- embeddings (used only by the memory layer) -----------------------------------------
+def embed(texts: list) -> list:
+    """Local embeddings via Ollama (nomic-embed-text). Anthropic has no embedding endpoint, so memory uses Ollama for this in both modes."""
+    import ollama
+
+    host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+    r = ollama.Client(host=host, timeout=120).embed(model=os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text"), input=list(texts))
+    return [list(v) for v in r.embeddings]

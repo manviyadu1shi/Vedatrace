@@ -290,20 +290,28 @@ class ToolBox:
     def find_cycles(self, account_id, max_hops=5):
         self._require(account_id, "Account")
         hops = max(2, min(int(max_hops or 5), 5))
-        try:
-            rows = self.q(f"MATCH p=(a:Account {{id:$id}})-[:SENT|TO*2..{2 * hops}]->(a) "
+        def routes(lo, hi, limit):
+            return self.q(f"MATCH p=(a:Account {{id:$id}})-[:SENT|TO*{lo}..{hi}]->(a) "
                           "WITH [n IN nodes(p) WHERE n:Account | n.id] AS accs, [n IN nodes(p) WHERE n:Transaction | n] AS txn "
                           "WITH accs, head(collect(txn)) AS tx, count(*) AS variants "
                           "RETURN accs, [t IN tx | t.id], reduce(m = 1000000000.0, t IN tx | CASE WHEN t.amount < m THEN t.amount ELSE m END), variants "
-                          "ORDER BY size(accs) LIMIT 12", {"id": account_id})
+                          f"ORDER BY size(accs) LIMIT {limit}", {"id": account_id})
+        try:
+            rows = routes(6, 2 * hops, 7) if hops >= 3 else []  # loops through 3+ accounts
+            rows = rows + routes(4, 4, 2)                         # two-account back-and-forth, reported separately so it cannot crowd out loops
         except Exception as e:  # timeout on hubs
             raise ToolError(f"Cycle search was too expensive ({type(e).__name__}); retry with a smaller max_hops.")
-        cycles = [dict(accounts=accs[:-1], hops=len(accs) - 1, cite_ids=accs[:-1] + txs, min_amount_on_cycle=minamt, parallel_tx_variants=var)
+        cycles = [dict(accounts=accs[:-1], hops=len(accs) - 1, shape="reciprocal_exchange" if len(accs) <= 3 else "multi_hop_loop",
+                       cite_ids=accs[:-1] + txs, min_amount_on_cycle=minamt, parallel_tx_variants=var)
                   for accs, txs, minamt, var in rows]
-        interp = [f"{len(cycles)} distinct cycle route(s) returning to {account_id}; shortest is {cycles[0]['hops']} hops."] if cycles else \
-                 [f"No cycle returning to {account_id} within {hops} hops."]
-        return dict(account=account_id, max_hops=hops, interpretation=interp, distinct_routes=len(cycles), cycles=cycles[:8],
-                    note="distinct account routes, shortest first (max 12)")
+        if cycles:
+            n_loop = sum(1 for c in cycles if c["shape"] == "multi_hop_loop")
+            interp = [f"{len(cycles)} distinct cycle route(s) returning to {account_id}: {n_loop} multi-hop loop(s) through 3+ accounts, "
+                      f"{len(cycles) - n_loop} two-account back-and-forth (reciprocal exchange, often benign: refunds, family transfers, bill splitting)."]
+        else:
+            interp = [f"No cycle returning to {account_id} within {hops} hops."]
+        return dict(account=account_id, max_hops=hops, interpretation=interp, distinct_routes=len(cycles), cycles=cycles,
+                    note="distinct account routes: up to 7 loops through 3+ accounts (shortest first) plus up to 2 two-account exchanges")
 
     def shortest_path(self, a, b, max_hops=6):
         la, lb = label_of(a), label_of(b)

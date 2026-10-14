@@ -78,7 +78,7 @@ def test_forbidden_env_name_not_used():
 
 def test_cypher_is_parameterized():
     """f-strings that build Cypher may only interpolate fixed labels/patterns and clamped-int path bounds, never tool arguments."""
-    allowed = {"label", "lab", "la", "lb", "hops", "2 * hops", "pat", "len(prefix)"}
+    allowed = {"label", "lab", "la", "lb", "hops", "2 * hops", "pat", "len(prefix)", "lo", "hi", "limit"}
     text = src(os.path.join(ROOT, "agents", "tools.py"))
     for m in re.finditer(r'f"([^"\n]*(?:MATCH|CREATE|MERGE|RETURN)[^"\n]*)"', text):
         body = m.group(1).replace("{{", "").replace("}}", "")
