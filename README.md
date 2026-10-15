@@ -20,7 +20,7 @@ flowchart LR
     REP[(Report · VIOLATES · CITES)]
     MEM[(vedatrace_memory<br/>vedatrace_graphiti)]
   end
-  LLM{{agents/llm.py<br/>anthropic | ollama}}
+  LLM{{"agents/llm.py<br/>anthropic or ollama"}}
   INV[Investigator<br/>process 1]
   REPO[Reporter<br/>process 2]
   UI[FastAPI + web UI]
