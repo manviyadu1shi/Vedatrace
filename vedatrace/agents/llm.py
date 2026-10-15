@@ -91,7 +91,7 @@ def _chat_ollama(messages, tools, system, max_tokens):
     import ollama
 
     host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-    client = ollama.Client(host=host, timeout=900)
+    client = ollama.Client(host=host, timeout=float(os.environ.get("OLLAMA_TIMEOUT", "240")))
     out = [{"role": "system", "content": system}] if system else []
     for m in messages:
         if m["role"] == "tool":
@@ -105,13 +105,21 @@ def _chat_ollama(messages, tools, system, max_tokens):
             out.append({"role": "user", "content": m["content"]})
     kwargs = dict(model=model_name(), messages=out, stream=False,
                   options={"temperature": 0.2, "num_predict": max_tokens,
-                           "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "12288"))})
+                           "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "8192"))})
     if tools:
         kwargs["tools"] = [{"type": "function", "function": t} for t in tools]
     think = os.environ.get("OLLAMA_THINK")  # "1"/"0" for models that support a thinking mode (qwen3); unset = model default
     if think in ("0", "1"):
         kwargs["think"] = think == "1"
-    r = client.chat(**kwargs)
+    last = None
+    for attempt in range(3):  # a stalled local server call must not hang the run forever
+        try:
+            r = client.chat(**kwargs)
+            break
+        except Exception as e:
+            last = e
+    else:
+        raise last
     msg = r.message
     calls = []
     for i, tc in enumerate(msg.tool_calls or []):
@@ -127,5 +135,5 @@ def embed(texts: list) -> list:
     import ollama
 
     host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-    r = ollama.Client(host=host, timeout=120).embed(model=os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text"), input=list(texts))
+    r = ollama.Client(host=host, timeout=120).embed(model=os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text"), input=list(texts), keep_alive=0)
     return [list(v) for v in r.embeddings]

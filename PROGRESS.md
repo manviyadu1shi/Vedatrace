@@ -28,8 +28,8 @@ RUN_E2E=1 E2E_RUNS=3 ../.venv/bin/python -m pytest -q -s tests/test_e2e.py   # s
 - [~] Phase 5 e2e script + tests — `run_demo.py`, `tests/test_e2e.py`, `tests/test_no_cheating.py`, `tests/test_tools.py` written. Repeatability numbers: see below (filled in by demo-verify).
 - [~] Phase 6 UI/FastAPI — written; verification results below.
 - [~] Phase 7 Graphiti memory — see below.
-- [ ] Phase 8 README + DEMO_SCRIPT
-- [ ] Phase 9 demo-verify
+- [x] Phase 8 README + DEMO_SCRIPT (drafted; numbers below are the real ones)
+- [~] Phase 9 demo-verify — only partly done, see 'Verification results'
 
 ## Design notes worth knowing
 - The Investigator is a free tool-using loop; no query order is coded. Tool outputs are generic analytics (shared devices, burst analysis against the account's own baseline, cycle search, flow tracing).
@@ -48,3 +48,18 @@ RUN_E2E=1 E2E_RUNS=3 ../.venv/bin/python -m pytest -q -s tests/test_e2e.py   # s
 - Quality depends on the local model. qwen2.5:14b finds the three structures in most runs but sometimes: records evidence on the wrong account, groups evidence into a slightly wrong pattern, or picks a benign reciprocal cycle first. Runs take ~6–18 minutes on this 16 GB machine.
 - Anthropic path untested (see above).
 - Graphiti entity extraction with a local 14B model is slow (~2 min per episode) and noisy; recall relies mostly on the case store.
+
+## Verification results (honest, as of the end of the overnight session)
+- Fast tests (no LLM): **19 passed, 1 skipped** (the skipped one is the opt-in LLM e2e test). Covers seed determinism/counts, no agent-written nodes after seeding, no ground-truth or ring ids in agent code, Reporter does not import the Investigator, only `agents/llm.py` imports provider SDKs, Cypher parameterisation, tool validators (hallucinated ids, claims checked against the graph, benign-basis checks).
+- Secrets: `.env` is git-ignored; no key-like strings in tracked files; the forbidden env var name is not used in code.
+- LLM runs that DID complete (qwen2.5:14b, demo seed, before the host ran out of memory): several full Investigator runs, and one complete `run_demo.py` run (Investigator -> separate-process Reporter -> memory recall/remember). In that run all citations resolved, the three policies matched, and `CASE-H1` was recalled and cited, but the Investigator **missed the SHARED_DEVICE evidence**. Earlier runs found all three structures (shared device, fan-out/structuring, circular flow) with correct provenance but with some mis-attributed evidence. No run has flagged a planted red herring as fraud.
+- Headless-browser replay of a finished investigation (`tests/ui_check.py`): steps, graph (6 node types), 59 clickable citations, citation click focuses the graph node, download links, 0 JS errors. **The live "click Run" flow through the browser was NOT verified.**
+- **NOT verified: the 3-run repeatability check.** `RUN_E2E=1 E2E_RUNS=3 pytest tests/test_e2e.py` was started four times and never completed a run: the 16 GB laptop had almost all of its swap used (12.2 of 13.3 GB), and Ollama stalled (investigation created, then no progress for 20-30+ min). I reduced `OLLAMA_NUM_CTX` to 8192, unload the embedding model after use, and added a 240 s timeout with retries, but did not get a clean run afterwards. So the pass rate is **unknown (0 of 3 measured)**; do not quote a number.
+- NOT verified: failure-mode checks (kill FalkorDB mid-run, Graphiti off during a full run), the Anthropic provider, a second provider pass-rate comparison.
+- `/demo-verify` was not completed.
+
+## Next steps for the owner
+1. Free memory (close apps, reboot if needed), `ollama serve`, then `cd vedatrace && RUN_E2E=1 E2E_RUNS=3 ../.venv/bin/python -m pytest -q -s tests/test_e2e.py` and record the real pass count here.
+2. `python tests/ui_check.py --live` to verify the live browser flow.
+3. With a key in `.env`: set `VEDATRACE_LLM_PROVIDER=anthropic` and repeat; expect better judgement than the 14B local model.
+4. Run the `/demo-verify` skill.

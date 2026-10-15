@@ -104,7 +104,7 @@ Notes on running Graphiti against the current FalkorDB image: graphiti-core 0.30
 
 ## Honest limitations
 * Developed overnight without an Anthropic key, so **all measured results are with local `qwen2.5:14b`** on a 16 GB laptop (6–18 min per investigation). The Anthropic path is implemented but untested against the live API.
-* A 14B local model still sometimes mis-attributes evidence or groups it imperfectly; the graph-side validators prevent *false provenance* but not every *judgement* error. See `PROGRESS.md` for measured pass rates.
+* A 14B local model still sometimes mis-attributes evidence or groups it imperfectly; the graph-side validators prevent *false provenance* but not every *judgement* error. The 3-run repeatability measurement did not complete (host memory exhaustion); see `PROGRESS.md` > Verification results for exactly what was and was not verified.
 * The recommendation (`ESCALATE | MONITOR | CLEAR`) is decision support; **a human analyst makes the final decision**.
 * Policy `regulatory_ref` values are generic placeholders, not real statutes.
 
