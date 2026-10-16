@@ -8,3 +8,5 @@ pytest
 httpx
 sse-starlette
 ollama
+graphiti-core[falkordb]
+playwright

@@ -383,7 +383,7 @@ class ToolBox:
                         return True
                 return False
             if not any(closes(a_, a_, 1) for a_ in nxt):
-                raise ToolError("Graph check failed: the cited transactions do not form a closed loop of money. Cite all transactions on the cycle.")
+                raise ToolError("Graph check failed: the cited transactions do not form a closed loop of money. Cite exactly ONE cycle: copy the whole `cite_ids` list (its accounts AND its transactions) of a single entry from the find_cycles result; do not mix ids from different routes or add other transactions.")
 
     def _verify_benign(self, basis, ids):
         accs = [i for i in ids if i.startswith("ACC-")]

@@ -265,6 +265,8 @@ def build_report(investigation_id: str, graph=None) -> dict:
     case = load_case(g, investigation_id)
     if case["status"] == "running":
         raise ReportError(f"Investigation {investigation_id} is still running.")
+    if case["status"] in ("abandoned", "failed"):
+        raise ReportError(f"Investigation {investigation_id} did not finish ({case['status']}); run it again.")
     mappings = map_policies(g, case)
     narrative = write_narrative(g, case, mappings)
     md = render_markdown(case, mappings, narrative)

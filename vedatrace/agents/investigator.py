@@ -8,7 +8,7 @@ from agents import llm
 from agents.tools import TOOL_SCHEMAS, ToolBox, ToolError, label_of, short_summary
 from config import get_graph
 
-MAX_STEPS = 36
+MAX_STEPS = 48
 RESULT_CHARS = 3000
 KEEP_FULL_RESULTS = 6
 
@@ -44,6 +44,16 @@ REVIEW_NOTE = ("Review the tool result(s) you just received. If they confirm a f
                "legitimate explanations). If they show nothing notable, continue investigating.")
 
 
+STALE_RUN_SECONDS = 30 * 60
+
+
+def sweep_stale(g, max_age_s=STALE_RUN_SECONDS):
+    """A run whose process or database died cannot mark itself failed. Anything still 'running' long after it started is abandoned."""
+    g.query("MATCH (i:Investigation {status:'running'}) WHERE i.started_ts < timestamp() - $ms "
+            "SET i.status='abandoned', i.finished_ts=timestamp(), i.summary='Run did not finish (process or database stopped).'",
+            {"ms": int(max_age_s * 1000)})
+
+
 def _compact(history, keep=KEEP_FULL_RESULTS):
     """Shrink old tool results so small local models keep their context window."""
     idx = [i for i, m in enumerate(history) if m["role"] == "tool"]
@@ -64,6 +74,9 @@ class Investigator:
         self.on_event(e)
 
     def _new_investigation(self, tx_id, memory_context):
+        sweep_stale(self.g)
+        if not self.g.ro_query("MATCH (t:Transaction {id:$id}) RETURN t.id", params={"id": tx_id}).result_set:
+            raise ValueError(f"Transaction {tx_id} not found in the graph.")
         r = self.g.query("MATCH (i:Investigation) RETURN max(toInteger(substring(i.id, 4)))").result_set[0][0]
         inv = f"INV-{(r or 0) + 1}"
         self.g.query("CREATE (:Investigation {id:$id, target_tx:$tx, status:'running', started_ts:timestamp(), provider:$p, model:$m, "
@@ -230,5 +243,9 @@ if __name__ == "__main__":
     ap.add_argument("--no-memory", action="store_true")
     a = ap.parse_args()
     t = time.time()
-    inv = Investigator(on_event=console, max_steps=a.max_steps, use_memory=not a.no_memory).run(a.tx)
+    try:
+        inv = Investigator(on_event=console, max_steps=a.max_steps, use_memory=not a.no_memory).run(a.tx)
+    except ValueError as e:
+        print(f"ERROR: {e}")
+        raise SystemExit(2)
     print(f"INVESTIGATION_ID={inv} ({time.time() - t:.0f}s)")

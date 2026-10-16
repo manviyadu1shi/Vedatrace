@@ -53,8 +53,9 @@ def llm_status():
             return dict(provider=prov, model=llm.model_name(), ok=ok, detail=None if ok else f"model {llm.model_name()} not pulled")
         except Exception as e:
             return dict(provider=prov, model=llm.model_name(), ok=False, detail=f"Ollama unreachable at {host}: {type(e).__name__}")
-    ok = bool(os.environ.get("VEDATRACE_API_KEY"))
-    return dict(provider=prov, model=llm.model_name(), ok=ok, detail=None if ok else "VEDATRACE_API_KEY is not set")
+    key_var = "OPENAI_API_KEY" if prov == "openai" else "VEDATRACE_API_KEY"
+    ok = bool(os.environ.get(key_var))
+    return dict(provider=prov, model=llm.model_name(), ok=ok, detail=None if ok else f"{key_var} is not set")
 
 
 def memory_status():
@@ -124,6 +125,8 @@ def start_investigation(req: StartReq):
 @app.get("/api/investigations")
 def list_investigations():
     try:
+        from agents.investigator import sweep_stale
+        sweep_stale(get_graph())
         rows = q("MATCH (i:Investigation) OPTIONAL MATCH (r:Report)-[:ABOUT]->(i) "
                  "RETURN i.id, i.target_tx, i.status, i.provider, i.model, i.steps, collect(r.id) ORDER BY toInteger(substring(i.id,4)) DESC LIMIT 30")
     except Exception as e:

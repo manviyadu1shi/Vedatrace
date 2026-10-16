@@ -110,8 +110,18 @@ def recall_cases(query, k=3):
         scored = [(_kw_score(query, c["text"]), c) for c in cases]
         method = "keyword"
     scored.sort(key=lambda x: -x[0])
+    top = scored[:k]
+    if k > 1 and not any(c["origin"] == "investigation" for _, c in top):
+        # Cases the system wrote itself must stay recallable: the best of them takes the last slot rather than being outranked by seeded history.
+        own = [x for x in scored if x[1]["origin"] == "investigation"]
+        if own:
+            scored = top[:-1] + [own[0]]
+        else:
+            scored = top
+    else:
+        scored = top
     return [dict(id=c["id"], title=c["title"], text=c["text"], outcome=c["outcome"], origin=c["origin"], score=round(s, 3), method=method)
-            for s, c in scored[:k] if s > 0.15]
+            for s, c in scored if s > 0.15]
 
 
 # ---- Graphiti layer (optional) -----------------------------------------------------------
@@ -159,13 +169,21 @@ def _build_graphiti():
     if llm.provider() == "anthropic":
         from graphiti_core.llm_client.anthropic_client import AnthropicClient
         llm_client = AnthropicClient(config=LLMConfig(api_key=os.environ["VEDATRACE_API_KEY"], model=llm.ANTHROPIC_MODEL))
+    elif llm.provider() == "openai":
+        from graphiti_core.llm_client.openai_generic_client import OpenAIGenericClient
+        llm_client = OpenAIGenericClient(config=LLMConfig(api_key=os.environ["OPENAI_API_KEY"], model=os.environ.get("OPENAI_GRAPHITI_MODEL", "gpt-4.1-mini"),
+                                                         small_model=os.environ.get("OPENAI_GRAPHITI_MODEL", "gpt-4.1-mini"), temperature=0.0, max_tokens=4096))
     else:
         from graphiti_core.llm_client.openai_generic_client import OpenAIGenericClient
         llm_client = OpenAIGenericClient(config=LLMConfig(api_key="ollama", model=llm.model_name(), small_model=llm.model_name(),
                                                          base_url=f"{host}/v1", temperature=0.0, max_tokens=4096))
-    embedder = OpenAIEmbedder(config=OpenAIEmbedderConfig(api_key="ollama", base_url=f"{host}/v1",
-                                                          embedding_model=os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text"),
-                                                          embedding_dim=768))
+    if llm.provider() == "openai":
+        embedder = OpenAIEmbedder(config=OpenAIEmbedderConfig(api_key=os.environ["OPENAI_API_KEY"], embedding_model="text-embedding-3-small",
+                                                              embedding_dim=1024))
+    else:
+        embedder = OpenAIEmbedder(config=OpenAIEmbedderConfig(api_key="ollama", base_url=f"{host}/v1",
+                                                              embedding_model=os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text"),
+                                                              embedding_dim=768))
     driver = FalkorDriver(host=FALKOR_HOST, port=FALKOR_PORT, database=GRAPHITI_GRAPH)
     return Graphiti(graph_driver=driver, llm_client=llm_client, embedder=embedder, cross_encoder=PassthroughReranker())
 
@@ -187,6 +205,22 @@ def _run(coro, timeout):
     return asyncio.run(asyncio.wait_for(coro, timeout))
 
 
+EXTRACTION_HINT = ("These are short AML case summaries. Extract every concrete entity (account types, devices, customer roles, behaviours such as "
+                   "fan-out, structuring, circular flow, shared device, payroll) and the relationships between them, including the case outcome.")
+
+
+async def _close_all(c):
+    """Close the Graphiti client and the async HTTP clients it created, inside the running loop (avoids 'Event loop is closed' at exit)."""
+    await c.close()
+    for part in (getattr(c, "llm_client", None), getattr(c, "embedder", None)):
+        cl = getattr(part, "client", None)
+        if cl is not None and hasattr(cl, "close"):
+            try:
+                await cl.close()
+            except Exception:
+                pass
+
+
 def graphiti_add(case_id, text, reference_time=None):
     """Ingest one case as an episode. Returns the episode uuid or None (never raises)."""
     if not graphiti_enabled():
@@ -196,10 +230,11 @@ def graphiti_add(case_id, text, reference_time=None):
         c = await _graphiti_ready()
         try:
             r = await c.add_episode(name=case_id, episode_body=text, source_description="VedaTrace case summary",
-                                    reference_time=reference_time or datetime.now(timezone.utc), group_id=GROUP_ID)
+                                    reference_time=reference_time or datetime.now(timezone.utc), group_id=GROUP_ID,
+                                    custom_extraction_instructions=EXTRACTION_HINT)
             return r.episode.uuid
         finally:
-            await c.close()
+            await _close_all(c)
 
     try:
         return _run(go(), GRAPHITI_TIMEOUT)
@@ -218,7 +253,7 @@ def graphiti_search(query, k=3):
         try:
             return [e.fact for e in await c.search(query, group_ids=[GROUP_ID], num_results=k)]
         finally:
-            await c.close()
+            await _close_all(c)
 
     try:
         _graphiti_state["tried"] = True

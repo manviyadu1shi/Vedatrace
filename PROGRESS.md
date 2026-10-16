@@ -22,7 +22,7 @@ RUN_E2E=1 E2E_RUNS=3 ../.venv/bin/python -m pytest -q -s tests/test_e2e.py   # s
 
 ## Status
 - [x] Phase 1 infra (git, .gitignore, .env.example, FalkorDB in Docker)
-- [x] Phase 2 seed — `tests/test_seed.py` passes (determinism, counts, no agent labels). Demo size: 1505 accounts, ~8k tx, 392 devices.
+- [x] Phase 2 seed — `tests/test_seed.py` passes (determinism, counts, no agent labels). Demo size: 1506 accounts, 7993 tx, 396 devices.
 - [x] Phase 3 tools + Investigator — works end to end on Ollama; see "Known issues" for the quality caveats.
 - [x] Phase 4 Reporter — separate process, only an investigation id as input, citations verified against the graph.
 - [~] Phase 5 e2e script + tests — `run_demo.py`, `tests/test_e2e.py`, `tests/test_no_cheating.py`, `tests/test_tools.py` written. Repeatability numbers: see below (filled in by demo-verify).
@@ -63,3 +63,30 @@ RUN_E2E=1 E2E_RUNS=3 ../.venv/bin/python -m pytest -q -s tests/test_e2e.py   # s
 2. `python tests/ui_check.py --live` to verify the live browser flow.
 3. With a key in `.env`: set `VEDATRACE_LLM_PROVIDER=anthropic` and repeat; expect better judgement than the 14B local model.
 4. Run the `/demo-verify` skill.
+
+## Independent verification, 2026-10-16 (OpenAI provider `gpt-5.6-luna`, FalkorDB in Docker, no Ollama)
+Provider added in `agents/llm.py` (`VEDATRACE_LLM_PROVIDER=openai`, key `OPENAI_API_KEY` in `.env`, reasoning_effort=none, retry/backoff on 429). Graphiti uses `gpt-4.1-mini` + `text-embedding-3-small` in this mode. `/api/health` key check made provider-aware.
+- Seed: deterministic (identical tx hash across resets); 0 Evidence/Pattern/Report nodes after seeding. Fast tests 19 passed, 1 skipped.
+- **Repeatability (RUN_E2E): 7/8 full discoveries** (run batches 2/3 and 5/5; the one miss omitted CIRCULAR_FLOW). 8/8 provenance, citations resolve, 0 red-herring violations. 5 distinct step sequences in 5 runs. A run takes ~60 s.
+- Decoupling: Reporter runs as a separate process given only an investigation id; refuses unfinished/missing investigations with a clear message.
+- UI: `python tests/ui_check.py --live` passes in headless Chromium (click Run, 37 steps streamed, 55-node graph, report with 116 citations, citation click focuses graph node, 0 JS errors).
+- Graphiti: works with OpenAI (4 episodes ingested, backend `graphiti+cases`); `run_demo.py` recalled H1/H3/H4, Reporter cited them, case stored with a Graphiti episode. `VEDATRACE_MEMORY=off` runs the core fine.
+- Failure modes: stopping FalkorDB mid-run exits non-zero but leaves the Investigation stuck as `running`.
+- Secrets: `.env` ignored, no key-like strings in the tree.
+### Known issues found
+1. Stale `running` Investigation after a DB crash (no recovery/sweep).
+2. CLI `agents.investigator --tx TX-NOPE` creates an investigation for a nonexistent tx (the API rejects it).
+3. A stored investigation case (`CASE-INV-n`) scores below the hand-written history cases, so with k=3 it is not recalled by the next run.
+4. Graphiti extracts very few entities (2 from 4 episodes); recall leans on the case store. Cosmetic "Event loop is closed" traceback at CLI exit.
+5. The Investigator never records BENIGN_EXPLANATION for the decoys; they are simply not flagged.
+6. The Anthropic and Ollama paths were not re-tested in this session.
+
+## Bug-fix pass, 2026-10-16
+Fixed and verified:
+1. Stale `running` investigations: `sweep_stale()` (investigator start + API list) marks runs older than 30 min `abandoned`; the Reporter refuses `abandoned`/`failed` runs.
+2. `python -m agents.investigator --tx TX-NOPE` now errors (exit 2) and creates no investigation.
+3. Memory recall always reserves a slot for the best self-written case (`origin=investigation`); `CASE-INV-1` is recalled first on a repeat run.
+4. Graphiti extraction: `custom_extraction_instructions` raised extraction from 2 entities to 19 entities / 17 facts; async clients are closed inside the loop, so no "Event loop is closed" traceback.
+5. Also: `MAX_STEPS` 36 -> 48 (runs were exhausting the budget), and the CIRCULAR_FLOW rejection message now says which ids to cite.
+Re-measured after the fixes: **6/6** full discoveries, 0 red-herring violations, 6 distinct step sequences, ~90 s per run (e2e, gpt-5.6-luna).
+**NOT fixed: the Investigator still never records BENIGN_EXPLANATION for the decoys.** I tried a generic self-review nudge ("check accounts on money loops before concluding"); it made the model investigate the payroll decoy and record it as fraud in 3 of 6 runs (red-herring violations), so I reverted it. Decoys are still not flagged, just not explained.

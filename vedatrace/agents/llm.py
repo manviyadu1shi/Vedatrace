@@ -33,7 +33,11 @@ def provider() -> str:
 
 
 def model_name() -> str:
-    return ANTHROPIC_MODEL if provider() == "anthropic" else os.environ.get("OLLAMA_MODEL", "qwen2.5:14b")
+    if provider() == "anthropic":
+        return ANTHROPIC_MODEL
+    if provider() == "openai":
+        return os.environ.get("OPENAI_MODEL", "gpt-5.6-luna")
+    return os.environ.get("OLLAMA_MODEL", "qwen2.5:14b")
 
 
 def chat(messages: list, tools: list | None = None, system: str | None = None, max_tokens: int = 2048) -> LLMResponse:
@@ -41,6 +45,8 @@ def chat(messages: list, tools: list | None = None, system: str | None = None, m
         return _chat_anthropic(messages, tools, system, max_tokens)
     if provider() == "ollama":
         return _chat_ollama(messages, tools, system, max_tokens)
+    if provider() == "openai":
+        return _chat_openai(messages, tools, system, max_tokens)
     raise ValueError(f"Unknown VEDATRACE_LLM_PROVIDER={provider()!r}")
 
 
@@ -129,9 +135,56 @@ def _chat_ollama(messages, tools, system, max_tokens):
     return LLMResponse(msg.content or "", calls)
 
 
+# ---- OpenAI (chat completions + tools; retries with backoff because of low rate limits) ----
+def _chat_openai(messages, tools, system, max_tokens):
+    import time
+
+    from openai import OpenAI, RateLimitError
+
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"], max_retries=0, timeout=120)
+    out = [{"role": "system", "content": system}] if system else []
+    for m in messages:
+        if m["role"] == "tool":
+            out.append({"role": "tool", "tool_call_id": m["tool_call_id"], "content": m["content"]})
+        elif m["role"] == "assistant":
+            d = {"role": "assistant", "content": m.get("content") or ""}
+            if m.get("tool_calls"):
+                d["tool_calls"] = [{"id": tc.id, "type": "function", "function": {"name": tc.name, "arguments": json.dumps(tc.arguments)}}
+                                   for tc in m["tool_calls"]]
+            out.append(d)
+        else:
+            out.append({"role": "user", "content": m["content"]})
+    kwargs = dict(model=model_name(), messages=out, max_completion_tokens=max_tokens,
+                  reasoning_effort=os.environ.get("OPENAI_REASONING_EFFORT", "none"))  # "none" = cheap and allows function tools
+    if tools:
+        kwargs["tools"] = [{"type": "function", "function": t} for t in tools]
+    for attempt in range(6):
+        try:
+            r = client.chat.completions.create(**kwargs)
+            break
+        except RateLimitError:
+            if attempt == 5:
+                raise
+            time.sleep(min(60, 5 * 2 ** attempt))
+    msg = r.choices[0].message
+    calls = []
+    for tc in msg.tool_calls or []:
+        try:
+            args = json.loads(tc.function.arguments or "{}")
+        except Exception:
+            args = {"_malformed": tc.function.arguments}
+        calls.append(ToolCall(tc.id, tc.function.name, args if isinstance(args, dict) else {"_malformed": str(args)}))
+    return LLMResponse(msg.content or "", calls)
+
+
 # ---- embeddings (used only by the memory layer) -----------------------------------------
 def embed(texts: list) -> list:
     """Local embeddings via Ollama (nomic-embed-text). Anthropic has no embedding endpoint, so memory uses Ollama for this in both modes."""
+    if provider() == "openai":
+        from openai import OpenAI
+
+        r = OpenAI(api_key=os.environ["OPENAI_API_KEY"], timeout=60).embeddings.create(model="text-embedding-3-small", input=list(texts))
+        return [list(d.embedding) for d in r.data]
     import ollama
 
     host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
