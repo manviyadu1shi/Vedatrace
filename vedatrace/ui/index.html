@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VedaTrace — graph-native AML investigation</title>
+<title>VedaTrace - graph-native AML investigation</title>
 <meta name="description" content="Two AI agents investigate suspicious transactions. They never talk to each other; they talk through the FalkorDB graph.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%278%27 cy=%278%27 r=%277%27 fill=%27%234aa3ff%27/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/style.css">
@@ -19,6 +19,11 @@
       <g fill="#fff"><circle cx="8" cy="22" r="2.6"/><circle cx="16" cy="9" r="2.6"/><circle cx="24" cy="22" r="2.6"/></g></svg>
     <div><div class="name">VedaTrace</div><div class="tag">Two AI agents investigate. They only talk through the graph.</div></div>
   </div>
+  <nav class="stepper" aria-label="Progress">
+    <a href="#/alerts" id="st-alerts" class="st"><span class="n">1</span>Alerts</a><span class="sep-l"></span>
+    <a href="#/case" id="st-case" class="st"><span class="n">2</span>Investigation</a><span class="sep-l"></span>
+    <a href="#/report" id="st-report" class="st"><span class="n">3</span>Report</a>
+  </nav>
   <div class="badges">
     <span id="b-db" class="badge">FalkorDB …</span>
     <span id="b-llm" class="badge">LLM …</span>
@@ -28,69 +33,72 @@
 </header>
 <div id="banner" class="banner hidden" role="alert"></div>
 
-<section id="hero" aria-label="How VedaTrace works">
-  <ol class="flow">
-    <li><span class="n">1</span><div><b>Alert</b><span>A suspicious transaction that looks innocent on its own.</span></div></li>
-    <li class="arrow" aria-hidden="true">›</li>
-    <li><span class="n">2</span><div><b>Investigator agent</b><span>Explores the graph, chooses its own next step, and records typed Evidence and Patterns, each citing exact nodes.</span></div></li>
-    <li class="arrow" aria-hidden="true">›</li>
-    <li class="hub"><span class="n">◈</span><div><b>FalkorDB graph</b><span>The only thing the agents share. Every finding is a node with provenance edges.</span></div></li>
-    <li class="arrow" aria-hidden="true">›</li>
-    <li><span class="n">3</span><div><b>Reporter agent</b><span>A separate process. Reads only the graph, matches Policies, writes a cited report.</span></div></li>
-  </ol>
+<!-- PAGE 1: pick an alert -->
+<section id="view-alerts" class="view">
+  <div class="page-head">
+    <h1>Suspicious transactions</h1>
+    <p>The monitoring system flagged these transactions. Pick one and an AI Investigator will explore the graph to decide whether it is part of a laundering scheme. A second, separate Reporter agent then writes the case report from what the Investigator left in the graph.</p>
+  </div>
+  <div id="alerts" class="alerts"><div class="muted">Loading alerts…</div></div>
 </section>
 
-<section id="summary" class="hidden" aria-label="Investigation summary"></section>
-
-<main>
-  <section class="col left">
-    <div class="panel" id="case-panel">
-      <h2><span class="num">1</span>Case</h2>
-      <label for="tx">Alerted transaction</label>
-      <div class="row">
-        <input id="tx" value="TX-FLAGSHIP" spellcheck="false" autocomplete="off">
-        <button id="run" class="primary">Run investigation</button>
-      </div>
-      <div class="row small">
-        <select id="past" title="Load a previous investigation"><option value="">Previous investigations…</option></select>
-      </div>
-      <div class="row small" id="player-row">
-        <button id="replay" class="ghost" disabled title="Replay the selected investigation step by step">▶ Replay</button>
-        <button id="skip" class="ghost" disabled title="Jump to the end of the replay">⏭ Skip</button>
-        <button id="reset" class="ghost" title="Drop and reseed the graph">Reset data</button>
-      </div>
-      <div id="case-status" class="status">Idle. The Investigator will choose its own steps.</div>
+<!-- PAGE 2: watch the investigation -->
+<section id="view-case" class="view hidden">
+  <div class="page-head row-head">
+    <div>
+      <a href="#/alerts" class="back">← All alerts</a>
+      <h1 id="case-title">Investigation</h1>
+      <div id="case-status" class="status">Idle.</div>
     </div>
-    <div class="panel grow" id="steps-panel">
-      <h2><span class="num">2</span>Investigation <span id="step-count" class="pill">0 steps</span></h2>
-      <div id="recalled" class="recalled hidden"></div>
-      <ol id="steps" class="steps"></ol>
+    <div class="actions">
+      <button id="replay" class="ghost" disabled title="Replay this investigation step by step">▶ Replay</button>
+      <button id="skip" class="ghost" disabled title="Jump to the end">⏭ Skip</button>
+      <a id="to-report" href="#/report" class="btn primary disabled">Continue to report →</a>
     </div>
-  </section>
-
-  <section class="col mid">
-    <div class="panel grow graph-panel">
-      <h2><span class="num">3</span>Evidence graph <span id="graph-note" class="muted"></span></h2>
-      <div id="cy"></div>
-      <div class="legend" id="legend"></div>
-      <div id="inspector" class="inspector hidden"></div>
-    </div>
-  </section>
-
-  <section class="col right">
-    <div class="panel grow" id="report-panel">
-      <h2><span class="num">4</span>Report</h2>
-      <div class="row">
-        <button id="make-report" class="primary" disabled>Generate report</button>
-        <a id="dl-md" class="btn hidden" href="#">⬇ Markdown</a>
-        <a id="dl-json" class="btn hidden" href="#">⬇ JSON</a>
+  </div>
+  <section id="summary" class="hidden" aria-label="Investigation summary"></section>
+  <main>
+    <section class="col left">
+      <div class="panel grow" id="steps-panel">
+        <h2>What the Investigator did <span id="step-count" class="pill">0 steps</span></h2>
+        <div id="recalled" class="recalled hidden"></div>
+        <ol id="steps" class="steps"></ol>
       </div>
+    </section>
+    <section class="col mid">
+      <div class="panel grow graph-panel">
+        <h2>Evidence graph <span id="graph-note" class="muted"></span></h2>
+        <div id="cy"></div>
+        <div class="legend" id="legend"></div>
+        <div id="inspector" class="inspector hidden"></div>
+      </div>
+    </section>
+  </main>
+</section>
+
+<!-- PAGE 3: the report -->
+<section id="view-report" class="view hidden">
+  <div class="page-head row-head">
+    <div>
+      <a href="#/case" class="back">← Back to investigation</a>
+      <h1 id="report-title">Report</h1>
+    </div>
+    <div class="actions">
+      <button id="make-report" class="primary" disabled>Generate report</button>
+      <a id="dl-md" class="btn hidden" href="#">⬇ Markdown</a>
+      <a id="dl-json" class="btn hidden" href="#">⬇ JSON</a>
+    </div>
+  </div>
+  <div class="report-grid">
+    <div class="panel" id="report-panel">
       <div id="report" class="report muted">The Reporter runs as a separate process. It reads only the graph, never the Investigator's memory.</div>
-      <h2 class="sub">Findings written by the Investigator</h2>
+    </div>
+    <div class="panel">
+      <h2>Findings the Investigator wrote to the graph</h2>
       <div id="findings" class="findings"></div>
     </div>
-  </section>
-</main>
+  </div>
+</section>
 
 <footer>
   <span>Built for <b>Graph Hacks</b> · WeMakeDevs × FalkorDB</span>
@@ -98,6 +106,7 @@
   <span>Graph database: <b>FalkorDB</b></span>
   <span class="sep">·</span>
   <span>Decision support only. A human analyst makes the final call.</span>
+  <button id="reset" class="linkbtn" title="Drop and reseed the graph">Reset data</button>
 </footer>
 <script src="/static/app.js"></script>
 </body>

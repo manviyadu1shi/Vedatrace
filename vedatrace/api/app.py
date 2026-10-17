@@ -44,7 +44,7 @@ def _cache_ttl(path: str):
     """None = do not cache, 0 = cache forever, >0 = cache for that many seconds."""
     if path == "/api/health" or path.startswith("/api/admin") or path.endswith("/stream") or path.endswith("/download"):
         return None
-    if path == "/api/investigations":
+    if path in ("/api/investigations", "/api/alerts"):
         return LIST_TTL
     m = re.match(r"^/api/(?:investigations|node)/(INV-\d+)", path)
     if m and m.group(1) not in RECORDED:  # a run that may still be in progress
@@ -205,6 +205,25 @@ def start_investigation(req: StartReq, request: Request):
         tail = "\n".join(log[-8:])
         return JSONResponse(status_code=502, content=dict(error="Investigation failed to start", detail=tail[-800:]))
     return dict(id=holder["id"], tx_id=req.tx_id)
+
+
+@app.get("/api/alerts")
+def list_alerts():
+    """Transactions the monitoring system flagged (raw seed facts), newest score first, each with its latest investigation if any."""
+    try:
+        rows = q("MATCH (a:Account)-[:SENT]->(t:Transaction {alerted:true})-[:TO]->(b:Account) "
+                 "RETURN t.id, t.amount, t.currency, t.monitor_score, t.channel, t.ts, a.id, b.id "
+                 "ORDER BY t.id = 'TX-FLAGSHIP' DESC, t.monitor_score DESC LIMIT 50")
+        invs = q("MATCH (i:Investigation) OPTIONAL MATCH (r:Report)-[:ABOUT]->(i) "
+                 "RETURN i.id, i.target_tx, i.status, i.recorded, collect(r.id) ORDER BY toInteger(substring(i.id,4)) DESC")
+    except Exception as e:
+        return db_error_response(e)
+    latest: dict = {}
+    for i in invs:
+        best = latest.get(i[1])
+        if best is None or (i[2] == "finished" and best["status"] != "finished"):
+            latest[i[1]] = dict(id=i[0], status=i[2], recorded=bool(i[3]), has_report=bool(i[4]))
+    return [dict(tx_id=r[0], amount=r[1], currency=r[2], score=r[3], channel=r[4], ts=r[5], src=r[6], dst=r[7], investigation=latest.get(r[0])) for r in rows]
 
 
 @app.get("/api/investigations")

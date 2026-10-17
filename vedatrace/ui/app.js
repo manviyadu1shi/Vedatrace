@@ -24,7 +24,7 @@ const PACE = { step: 520, write: 1100 }; /* ms between steps during a replay */
 let cy, es = null, currentInv = null, currentReport = null, graphTimer = null, running = false, stepCount = 0, readonly = false, adminEnabled = false, adminToken = null;
 try { adminToken = sessionStorage.getItem('vt_admin'); } catch (e) { /* storage may be blocked */ }
 const locked = () => readonly && !adminToken; /* true on a read-only deployment until the owner unlocks it */
-let player = null, fullGraph = null, pastMeta = {}, noteText = '';
+let player = null, fullGraph = null, pastMeta = {}, noteText = '', currentTx = '', runFinished = false;
 
 /* ---------- helpers ---------- */
 async function api(path, opts) {
@@ -69,9 +69,9 @@ async function health() {
     const problems = [];
     if (!h.falkordb.ok) problems.push('FalkorDB is not reachable. Start it with: docker start vedatrace-falkordb  (or docker run -p 6379:6379 -p 3000:3000 falkordb/falkordb)');
     else if (h.falkordb.nodes === 0) problems.push('The graph is empty. Press "Reset data" to seed it.');
-    if (readonly && adminToken) problems.push('Admin mode: live runs are enabled. They use the LLM quota of the server. Reset stays locked so the recorded run is safe.');
-    else if (readonly) problems.push('Read-only replay of a recorded investigation. Every node, step and citation below is read from FalkorDB; run locally with an LLM key to investigate live.' + (adminEnabled ? ' The owner can unlock live runs with the Admin button.' : ''));
-    else if (!h.llm.ok) problems.push('Live runs are disabled (' + (h.llm.detail || 'LLM not ready') + '). Recorded runs can still be replayed from the "Previous investigations" list.');
+    if (readonly && adminToken) problems.push('Admin mode: live runs are enabled and use the server\'s LLM quota. Reset stays locked so the recorded run is safe.');
+    else if (readonly) problems.push('Public demo: you can replay the recorded investigation of TX-FLAGSHIP. Alerts without a recording need a live run, which is off here.' + (adminEnabled ? ' The owner can unlock live runs with the Admin button.' : ''));
+    else if (!h.llm.ok) problems.push('Live runs are disabled (' + (h.llm.detail || 'LLM not ready') + '). Recorded runs can still be replayed.');
     banner(problems.join('\n'), !problems.some((p) => p.startsWith('FalkorDB')));
     return h;
   } catch (e) { banner(e.message); }
@@ -80,8 +80,8 @@ async function health() {
 /* ---------- read-only lock and admin unlock ---------- */
 function applyLock() {
   const lock = locked();
-  ['run', 'tx'].forEach((i) => { $(i).disabled = lock || (i === 'run' && running); $(i).title = lock ? 'Read-only replay deployment' : ''; });
-  $('reset').disabled = readonly; $('reset').title = readonly ? 'Disabled on a read-only deployment' : '';
+  document.querySelectorAll('.run-btn').forEach((b) => { b.disabled = lock || running; b.title = lock ? 'Live runs are off in the public demo' : ''; });
+  $('reset').disabled = readonly; $('reset').classList.toggle('hidden', readonly);
   if (lock) $('make-report').disabled = true;
   const u = $('unlock'); u.classList.toggle('hidden', !(readonly && adminEnabled)); u.textContent = adminToken ? '🔓 Admin mode' : '🔒 Admin';
   u.title = adminToken ? 'Click to lock again' : 'Owner only: unlock live runs';
@@ -243,9 +243,9 @@ function openStream(inv) {
   });
   es.addEventListener('done', async (e) => {
     const d = JSON.parse(e.data); es.close(); es = null; running = false;
-    $('run').disabled = locked();
+    applyLock();
     setStatus(d.status === 'finished' ? `Finished. ${d.summary || ''}` : d.status === 'failed' ? `Investigation failed: ${d.summary || ''}` : `Stopped (${d.status}). ${d.summary || ''}`, d.status === 'finished' ? 'ok' : 'err');
-    $('make-report').disabled = d.status === 'failed' || locked();
+    markFinished(d.status);
     $('replay').disabled = false;
     await refreshGraph();
     await loadPast();
@@ -261,14 +261,15 @@ function resetView() {
   if (cy) cy.elements().remove(); noteText = ''; $('graph-note').textContent = ''; $('inspector').classList.add('hidden'); fullGraph = null;
   $('report').className = 'report muted'; $('report').textContent = 'The Reporter runs as a separate process. It reads only the graph, never the Investigator\'s memory.';
   ['dl-md', 'dl-json'].forEach((i) => $('' + i).classList.add('hidden'));
-  $('make-report').disabled = true; currentReport = null; $('recalled').classList.add('hidden');
+  $('make-report').disabled = true; $('make-report').textContent = 'Generate report'; currentReport = null; $('recalled').classList.add('hidden');
+  runFinished = false; $('to-report').classList.add('disabled'); updateNav();
   $('summary').classList.add('hidden'); $('summary').innerHTML = '';
   $('replay').disabled = true; $('skip').disabled = true;
 }
 
 /* ---------- summary bar ---------- */
 async function showSummary(inv, rep) {
-  const meta = pastMeta[inv] || {}, tx = meta.tx_id || $('tx').value.trim();
+  const meta = pastMeta[inv] || {}, tx = meta.tx_id || currentTx;
   let amount = null, score = null;
   try { const t = await api('/api/node/' + encodeURIComponent(tx)); amount = t.props.amount; score = t.props.monitor_score; } catch (e) { /* optional */ }
   const nEv = $('findings').querySelectorAll('.finding:not(.pattern)').length, nPa = $('findings').querySelectorAll('.finding.pattern').length;
@@ -299,12 +300,24 @@ async function completeReplay(p) {
   const rid = ((pastMeta[inv] || {}).reports || [])[0];
   let rep = null;
   if (rid) { try { rep = await api('/api/reports/' + rid); currentReport = rep; renderReport(rep); } catch (e) { /* none */ } }
-  $('make-report').disabled = locked() || tr.status === 'failed';
+  markFinished(tr.status);
+  if (rep) $('make-report').textContent = 'Regenerate report';
   await showSummary(inv, rep);
 }
 
-async function playRun(inv) {
+/* a run is finished: unlock the "Continue to report" step */
+function markFinished(status) {
+  runFinished = status !== 'failed' && status !== 'running';
+  $('to-report').classList.toggle('disabled', !runFinished);
+  $('make-report').disabled = !runFinished || locked();
+  updateNav();
+}
+
+async function playRun(inv, instant) {
   resetView(); currentInv = inv; banner('');
+  currentTx = (pastMeta[inv] || {}).tx_id || currentTx;
+  $('case-title').textContent = `Investigation ${inv}` + (currentTx ? ` · ${currentTx}` : '');
+  $('to-report').href = `#/report/${inv}`; updateNav();
   setStatus(`Loading ${inv} from the graph…`);
   let tr, g;
   try { [tr, g] = await Promise.all([api(`/api/investigations/${inv}/trace`), api(`/api/investigations/${inv}/graph`)]); }
@@ -326,22 +339,27 @@ async function playRun(inv) {
     setStatus(`Replaying ${inv} · step ${s.seq} of ${tr.steps.length}`);
     p.timer = setTimeout(tick, fs.length || WRITERS.has(s.tool) ? PACE.write : PACE.step);
   };
+  if (instant) { completeReplay(p); return; }
   setStatus(`Replaying ${inv} · ${tr.steps.length} steps`);
   tick();
 }
 
 /* ---------- actions ---------- */
-async function run() {
+/* start a live investigation from an alert card; on success the router opens the investigation page and streams it */
+async function run(tx, btn) {
   if (running) return;
-  resetView(); banner('');
-  const tx = $('tx').value.trim();
-  running = true; $('run').disabled = true; setStatus('Starting the Investigator process…');
+  banner('');
+  running = true; applyLock();
+  const label = btn.textContent; btn.textContent = 'Starting the Investigator…';
   try {
     const r = await api('/api/investigations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tx_id: tx }) });
-    currentInv = r.id; setStatus(`${r.id} running…`);
-    await loadRecall(r.id);
-    openStream(r.id); refreshGraph();
-  } catch (e) { running = false; $('run').disabled = locked(); setStatus(e.message, 'err'); banner(e.message); }
+    pastMeta[r.id] = { id: r.id, tx_id: tx }; currentTx = tx;
+    running = false; applyLock();
+    location.hash = `#/case/${r.id}`;
+  } catch (e) {
+    running = false; applyLock(); btn.textContent = label;
+    banner('Could not start the investigation.\n' + e.message);
+  }
 }
 
 async function loadRecall(inv) {
@@ -372,7 +390,7 @@ function renderReport(rep) {
   const box = $('report'); box.className = 'report'; box.innerHTML = html;
   box.querySelectorAll('a[href^="#cite-"]').forEach((a) => {
     const id = a.getAttribute('href').slice(6); a.className = 'cite'; a.textContent = id; a.removeAttribute('href');
-    a.onclick = (ev) => { ev.preventDefault(); focusNode(id); };
+    a.onclick = (ev) => { ev.preventDefault(); location.hash = `#/case/${currentInv}`; setTimeout(() => focusNode(id), 250); };
   });
   const rec = el('span', 'rec ' + rep.recommendation, rep.recommendation); box.prepend(rec);
   $('dl-md').href = `/api/reports/${rep.id}/download?format=md`; $('dl-json').href = `/api/reports/${rep.id}/download?format=json`;
@@ -382,42 +400,97 @@ function renderReport(rep) {
 async function loadPast() {
   try {
     const list = await api('/api/investigations');
-    const sel = $('past'), keep = sel.value; sel.length = 1; pastMeta = {};
-    list.forEach((i) => {
-      pastMeta[i.id] = i;
-      const o = el('option', '', `${i.id} · ${i.tx_id} · ${i.status}${i.reports.length ? ' · report' : ''}${i.recorded ? ' · recorded run' : ''}`);
-      o.value = i.id; o.dataset.report = i.reports[0] || ''; sel.append(o);
-    });
-    if (keep && pastMeta[keep]) sel.value = keep;
+    pastMeta = {};
+    list.forEach((i) => { pastMeta[i.id] = i; });
   } catch (e) { /* ignore */ }
 }
 
-async function openPast() {
-  const id = $('past').value; if (!id) return;
-  await playRun(id);
+/* ---------- page 1: alerts ---------- */
+const fmtDate = (ts) => { try { return new Date(ts > 1e11 ? ts : ts * 1000).toISOString().replace('T', ' ').slice(0, 16) + ' UTC'; } catch (e) { return ''; } };
+
+async function loadAlerts() {
+  const box = $('alerts');
+  let list;
+  try { list = await api('/api/alerts'); } catch (e) { box.innerHTML = ''; box.append(el('div', 'muted', e.message)); return; }
+  box.innerHTML = '';
+  if (!list.length) { box.append(el('div', 'muted', 'No alerted transactions. The graph may be empty' + (readonly ? '.' : ': use "Reset data" in the footer to seed it.'))); return; }
+  list.forEach((a) => {
+    const inv = a.investigation, card = el('div', 'alert' + (a.tx_id === 'TX-FLAGSHIP' ? ' featured' : ''));
+    const top = el('div', 'top'); top.append(el('span', 'id', a.tx_id));
+    if (a.tx_id === 'TX-FLAGSHIP') top.append(el('span', 'tag-s feat', 'Featured case'));
+    const amt = el('div', 'amt', Number(a.amount).toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' '); amt.append(el('small', '', a.currency || 'USD'));
+    const meta = el('div', 'meta');
+    const line = (k, v) => { const d = el('div'); d.append(k + ' ', el('b', '', v)); meta.append(d); };
+    line('From', a.src); line('To', a.dst); line('Channel', a.channel || 'n/a'); line('Alert score', String(a.score)); line('When', fmtDate(a.ts));
+    const foot = el('div', 'foot');
+    const status = !inv ? el('span', 'tag-s', 'Not investigated')
+      : inv.status === 'finished' ? el('span', 'tag-s done', inv.recorded ? 'Recorded run' : inv.has_report ? 'Investigated · report ready' : 'Investigated')
+      : el('span', 'tag-s run', inv.status === 'running' ? 'Running…' : inv.status);
+    const act = el('div', 'actions');
+    if (inv) { const open = el('a', 'btn primary', inv.recorded ? '▶ Watch recorded investigation' : 'Open investigation'); open.href = `#/case/${inv.id}`; act.append(open); }
+    if (!locked()) {
+      const b = el('button', (inv ? 'ghost' : 'primary') + ' run-btn', inv ? 'Run again' : 'Investigate');
+      b.onclick = () => run(a.tx_id, b); act.append(b);
+    }
+    foot.append(status, act);
+    card.append(top, amt, meta, foot);
+    if (!inv && locked()) card.append(el('div', 'muted', 'Needs a live run (off in the public demo).'));
+    box.append(card);
+  });
+  applyLock();
+}
+
+/* ---------- router: #/alerts, #/case/INV-n, #/report/INV-n ---------- */
+function updateNav() {
+  const v = currentView, has = !!currentInv;
+  const set = (id, active, done, off, href) => { const a = $(id); a.className = 'st' + (active ? ' active' : '') + (done ? ' done' : '') + (off ? ' off' : ''); if (href) a.href = href; };
+  set('st-alerts', v === 'alerts', has && v !== 'alerts', false);
+  set('st-case', v === 'case', has && v === 'report', !has, has ? `#/case/${currentInv}` : '#/alerts');
+  set('st-report', v === 'report', false, !(has && runFinished), has ? `#/report/${currentInv}` : '#/alerts');
+}
+let currentView = 'alerts';
+function showView(v) {
+  currentView = v;
+  ['alerts', 'case', 'report'].forEach((n) => $('view-' + n).classList.toggle('hidden', n !== v));
+  updateNav();
+  if (v === 'case' && cy) { cy.resize(); if (cy.nodes().length) cy.fit(undefined, 30); }
+}
+async function route() {
+  const [, view, id] = (location.hash || '#/alerts').split('/');
+  if (view === 'case' && id) {
+    showView('case');
+    if (currentInv !== id) await playRun(id);
+  } else if (view === 'report' && id) {
+    showView('report');
+    if (currentInv !== id) await playRun(id, true);
+    $('report-title').textContent = `Report · ${currentTx || id}`;
+    if (!currentReport && runFinished) {
+      $('report').className = 'report muted';
+      $('report').textContent = locked() ? 'No report was recorded for this investigation.' : 'No report yet. Press "Generate report": the Reporter, a separate process, will read the evidence from the graph and write it.';
+    }
+  } else {
+    showView('alerts'); loadAlerts();
+  }
 }
 
 async function resetData() {
   if (!confirm('Drop and reseed the demo graph? All investigations and reports will be erased.')) return;
   const b = $('reset'); b.disabled = true; b.textContent = 'Resetting…';
-  try { const r = await api('/api/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ size: 'demo' }) }); resetView(); currentInv = null; setStatus(r.message, 'ok'); banner(''); }
+  try { const r = await api('/api/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ size: 'demo' }) }); resetView(); currentInv = null; setStatus(r.message, 'ok'); banner(''); location.hash = '#/alerts'; }
   catch (e) { setStatus(e.message, 'err'); banner(e.message); }
   b.disabled = false; b.textContent = 'Reset data'; await health(); loadPast();
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
   initGraph();
-  $('run').onclick = run; $('make-report').onclick = makeReport; $('reset').onclick = resetData; $('past').onchange = openPast;
+  $('make-report').onclick = makeReport; $('reset').onclick = resetData;
   $('replay').onclick = () => { if (currentInv) playRun(currentInv); };
-  $('unlock').onclick = toggleAdmin;
+  $('unlock').onclick = async () => { await toggleAdmin(); if (currentView === 'alerts') loadAlerts(); };
   $('skip').onclick = () => { if (player) completeReplay(player); };
-  $('tx').addEventListener('keydown', (e) => { if (e.key === 'Enter') run(); });
+  window.addEventListener('hashchange', route);
   await health();
   if (adminToken) { try { const r = await fetch('/api/admin/check', { headers: { 'X-Admin-Token': adminToken } }); if (!(await r.json()).ok) { adminToken = null; sessionStorage.removeItem('vt_admin'); await health(); } } catch (e) { /* offline */ } }
   await loadPast();
-  if (readonly && $('past').options.length > 1) {  // land on the newest FINISHED run (not a failed or in-progress live run) and play it
-    const ids = Object.keys(pastMeta), pick = ids.find((i) => pastMeta[i].status === 'finished' && (pastMeta[i].reports || []).length) || ids.find((i) => pastMeta[i].status === 'finished');
-    if (pick) { $('past').value = pick; openPast(); }
-  }
+  await route();
   setInterval(health, 20000);
 });
