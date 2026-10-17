@@ -1,6 +1,7 @@
 """FastAPI backend for the demo UI. The API never holds agent state: the Investigator and Reporter run as separate processes
 and everything the UI shows (steps, evidence, patterns, report) is read back from FalkorDB."""
 import asyncio
+import hmac
 import json
 import os
 import re
@@ -29,25 +30,44 @@ JOB_LOCK = threading.Lock()
 READONLY = os.environ.get("VEDATRACE_READONLY") == "1"  # public replay deployment: no LLM calls, no resets
 
 
-RESP_CACHE: dict = {}  # read-only replay: the recorded run never changes, so GET responses are cached (a remote FalkorDB costs ~1 s per query)
-NO_CACHE = ("/api/health",)
+RESP_CACHE: dict = {}  # key -> (body, media_type, expires_at or None)
+RECORDED: set = set()  # ids of recorded investigations: immutable, so their API responses can be cached (a remote FalkorDB costs ~1 s per query)
+LIST_TTL = 15  # seconds: the investigation list changes when an admin starts a run
+ADMIN_TOKEN = os.environ.get("VEDATRACE_ADMIN_TOKEN") or None  # lets the owner run live investigations on a read-only deployment
+
+
+def is_admin(request: Request) -> bool:
+    return bool(ADMIN_TOKEN) and hmac.compare_digest(request.headers.get("x-admin-token", ""), ADMIN_TOKEN)
+
+
+def _cache_ttl(path: str):
+    """None = do not cache, 0 = cache forever, >0 = cache for that many seconds."""
+    if path == "/api/health" or path.startswith("/api/admin") or path.endswith("/stream") or path.endswith("/download"):
+        return None
+    if path == "/api/investigations":
+        return LIST_TTL
+    m = re.match(r"^/api/(?:investigations|node)/(INV-\d+)", path)
+    if m and m.group(1) not in RECORDED:  # a run that may still be in progress
+        return None
+    return 0
 
 
 @app.middleware("http")
 async def readonly_cache(request: Request, call_next):
     path = request.url.path
-    if not READONLY or request.method != "GET" or not path.startswith("/api/") or path in NO_CACHE or path.endswith("/stream") or path.endswith("/download"):
+    ttl = _cache_ttl(path) if (READONLY and request.method == "GET" and path.startswith("/api/")) else None
+    if ttl is None:
         return await call_next(request)
     key = path + "?" + request.url.query
     hit = RESP_CACHE.get(key)
-    if hit:
+    if hit and (hit[2] is None or hit[2] > time.time()):
         return Response(content=hit[0], media_type=hit[1])
     resp = await call_next(request)
     if resp.status_code != 200:
         return resp
     body = b"".join([chunk async for chunk in resp.body_iterator])
     media = resp.media_type or "application/json"
-    RESP_CACHE[key] = (body, media)
+    RESP_CACHE[key] = (body, media, time.time() + ttl if ttl else None)
     return Response(content=body, media_type=media)
 
 
@@ -57,8 +77,14 @@ def _prewarm():
         from fastapi.testclient import TestClient
         c = TestClient(app)
         runs = c.get("/api/investigations").json()
-        for r in runs if isinstance(runs, list) else []:
+        runs = runs if isinstance(runs, list) else []
+        for r in runs:
+            if r.get("recorded"):
+                RECORDED.add(r["id"])
+        for r in runs:
             inv = r["id"]
+            if inv not in RECORDED:
+                continue
             c.get(f"/api/investigations/{inv}/trace"); c.get(f"/api/investigations/{inv}/memory")
             g = c.get(f"/api/investigations/{inv}/graph").json()
             for rid in r.get("reports", []):
@@ -75,9 +101,10 @@ def _start_prewarm():
         threading.Thread(target=_prewarm, daemon=True).start()
 
 
-def deny_if_readonly():
-    if READONLY:
-        raise HTTPException(403, "This is a read-only replay deployment: it shows a recorded investigation. Run the project locally with an LLM key to investigate live.")
+def deny_if_readonly(request: Request, allow_admin: bool = False):
+    if READONLY and not (allow_admin and is_admin(request)):
+        raise HTTPException(403, "This is a read-only replay deployment: it shows a recorded investigation. Run the project locally with an LLM key to investigate live."
+                                 + (" The owner can unlock live runs with the admin token." if ADMIN_TOKEN else ""))
 
 
 def g():
@@ -118,9 +145,14 @@ def memory_status():
         return dict(enabled=False, backend=None, detail=f"memory unavailable: {type(e).__name__}")
 
 
+@app.get("/api/admin/check")
+def admin_check(request: Request):
+    return dict(ok=is_admin(request))
+
+
 @app.get("/api/health")
 def health():
-    out = dict(graph=GRAPH_NAME, llm=llm_status(), memory=memory_status(), readonly=READONLY)
+    out = dict(graph=GRAPH_NAME, llm=llm_status(), memory=memory_status(), readonly=READONLY, admin_enabled=bool(ADMIN_TOKEN))
     try:
         n = q("MATCH (n) RETURN count(n)")[0][0]
         out["falkordb"] = dict(ok=True, nodes=n)
@@ -146,8 +178,8 @@ def _reader(inv_holder, proc, log):
 
 
 @app.post("/api/investigations")
-def start_investigation(req: StartReq):
-    deny_if_readonly()
+def start_investigation(req: StartReq, request: Request):
+    deny_if_readonly(request, allow_admin=True)
     if not re.fullmatch(r"TX-[A-Za-z0-9]+", req.tx_id):
         raise HTTPException(400, "Transaction ids look like TX-00123 or TX-FLAGSHIP")
     try:
@@ -353,9 +385,9 @@ def node_detail(node_id: str):
 
 # ---- reports ----------------------------------------------------------------------------
 @app.post("/api/investigations/{inv}/report")
-def make_report(inv: str):
+def make_report(inv: str, request: Request):
     """Runs the Reporter as a separate process; only the investigation id is passed."""
-    deny_if_readonly()
+    deny_if_readonly(request, allow_admin=True)
     p = subprocess.run([sys.executable, "-u", "-m", "agents.reporter", "--investigation", inv], cwd=ROOT, capture_output=True, text=True)
     m = re.search(r"REPORT_ID=(RPT-\d+)", p.stdout or "")
     if p.returncode or not m:
@@ -386,8 +418,8 @@ class ResetReq(BaseModel):
 
 
 @app.post("/api/reset")
-def reset(req: ResetReq):
-    deny_if_readonly()
+def reset(req: ResetReq, request: Request):
+    deny_if_readonly(request)  # never allowed on a read-only deployment, even for the admin: it would wipe the recorded run
     if req.size not in ("dev", "demo"):
         raise HTTPException(400, "size must be dev or demo")
     with JOB_LOCK:

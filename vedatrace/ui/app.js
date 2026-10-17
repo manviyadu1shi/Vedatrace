@@ -21,12 +21,15 @@ const TOOLS = {
 };
 const PACE = { step: 520, write: 1100 }; /* ms between steps during a replay */
 
-let cy, es = null, currentInv = null, currentReport = null, graphTimer = null, running = false, stepCount = 0, readonly = false;
+let cy, es = null, currentInv = null, currentReport = null, graphTimer = null, running = false, stepCount = 0, readonly = false, adminEnabled = false, adminToken = null;
+try { adminToken = sessionStorage.getItem('vt_admin'); } catch (e) { /* storage may be blocked */ }
+const locked = () => readonly && !adminToken; /* true on a read-only deployment until the owner unlocks it */
 let player = null, fullGraph = null, pastMeta = {}, noteText = '';
 
 /* ---------- helpers ---------- */
 async function api(path, opts) {
   let r;
+  if (adminToken && opts && opts.method && opts.method !== 'GET') opts = { ...opts, headers: { ...(opts.headers || {}), 'X-Admin-Token': adminToken } };
   try { r = await fetch(path, opts); } catch (e) { throw new Error('Cannot reach the VedaTrace API: ' + e.message); }
   let body = null;
   try { body = await r.json(); } catch (e) { /* non-json */ }
@@ -44,7 +47,7 @@ function banner(msg, info) {
   if (!msg) { b.classList.add('hidden'); return; }
   b.textContent = msg; b.classList.toggle('info', !!info); b.classList.remove('hidden');
 }
-function setStatus(msg, cls) { const s = $('case-status'); s.textContent = msg; s.className = 'status ' + (cls || ''); }
+function setStatus(msg, cls) { const s = $('case-status'); s.textContent = msg; s.title = msg; s.className = 'status ' + (cls || ''); }
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
 
 /* ---------- health ---------- */
@@ -61,16 +64,37 @@ async function health() {
     mem.className = 'badge ' + (h.memory.enabled ? 'ok' : 'off');
     mem.title = h.memory.detail || '';
     if (h.readonly && !h.memory.enabled) { mem.textContent = 'memory · shown in recording'; mem.title = 'Recalled cases are stored in the recorded run (Graphiti + case store); no live memory service here'; }
-    readonly = !!h.readonly;
-    if (readonly) { ['run', 'reset', 'make-report', 'tx'].forEach((i) => { $(i).disabled = true; $(i).title = 'Read-only replay deployment'; }); }
+    readonly = !!h.readonly; adminEnabled = !!h.admin_enabled;
+    applyLock();
     const problems = [];
     if (!h.falkordb.ok) problems.push('FalkorDB is not reachable. Start it with: docker start vedatrace-falkordb  (or docker run -p 6379:6379 -p 3000:3000 falkordb/falkordb)');
     else if (h.falkordb.nodes === 0) problems.push('The graph is empty. Press "Reset data" to seed it.');
-    if (readonly) problems.push('Read-only replay of a recorded investigation. Every node, step and citation below is read from FalkorDB; run locally with an LLM key to investigate live.');
+    if (readonly && adminToken) problems.push('Admin mode: live runs are enabled. They use the LLM quota of the server. Reset stays locked so the recorded run is safe.');
+    else if (readonly) problems.push('Read-only replay of a recorded investigation. Every node, step and citation below is read from FalkorDB; run locally with an LLM key to investigate live.' + (adminEnabled ? ' The owner can unlock live runs with the Admin button.' : ''));
     else if (!h.llm.ok) problems.push('Live runs are disabled (' + (h.llm.detail || 'LLM not ready') + '). Recorded runs can still be replayed from the "Previous investigations" list.');
     banner(problems.join('\n'), !problems.some((p) => p.startsWith('FalkorDB')));
     return h;
   } catch (e) { banner(e.message); }
+}
+
+/* ---------- read-only lock and admin unlock ---------- */
+function applyLock() {
+  const lock = locked();
+  ['run', 'tx'].forEach((i) => { $(i).disabled = lock || (i === 'run' && running); $(i).title = lock ? 'Read-only replay deployment' : ''; });
+  $('reset').disabled = readonly; $('reset').title = readonly ? 'Disabled on a read-only deployment' : '';
+  if (lock) $('make-report').disabled = true;
+  const u = $('unlock'); u.classList.toggle('hidden', !(readonly && adminEnabled)); u.textContent = adminToken ? '🔓 Admin mode' : '🔒 Admin';
+  u.title = adminToken ? 'Click to lock again' : 'Owner only: unlock live runs';
+}
+async function toggleAdmin() {
+  if (adminToken) { adminToken = null; try { sessionStorage.removeItem('vt_admin'); } catch (e) { /* ignore */ } await health(); return; }
+  const t = window.prompt('Admin token (owner only)'); if (!t) return;
+  try {
+    const r = await fetch('/api/admin/check', { headers: { 'X-Admin-Token': t } }), b = await r.json();
+    if (b.ok) { adminToken = t; try { sessionStorage.setItem('vt_admin', t); } catch (e) { /* ignore */ } setStatus('Admin mode on: live runs are enabled.', 'ok'); }
+    else window.alert('Wrong admin token.');
+  } catch (e) { window.alert(e.message); }
+  await health();
 }
 
 /* ---------- graph ---------- */
@@ -219,9 +243,9 @@ function openStream(inv) {
   });
   es.addEventListener('done', async (e) => {
     const d = JSON.parse(e.data); es.close(); es = null; running = false;
-    $('run').disabled = readonly;
+    $('run').disabled = locked();
     setStatus(d.status === 'finished' ? `Finished. ${d.summary || ''}` : d.status === 'failed' ? `Investigation failed: ${d.summary || ''}` : `Stopped (${d.status}). ${d.summary || ''}`, d.status === 'finished' ? 'ok' : 'err');
-    $('make-report').disabled = d.status === 'failed' || readonly;
+    $('make-report').disabled = d.status === 'failed' || locked();
     $('replay').disabled = false;
     await refreshGraph();
     await loadPast();
@@ -275,7 +299,7 @@ async function completeReplay(p) {
   const rid = ((pastMeta[inv] || {}).reports || [])[0];
   let rep = null;
   if (rid) { try { rep = await api('/api/reports/' + rid); currentReport = rep; renderReport(rep); } catch (e) { /* none */ } }
-  $('make-report').disabled = readonly || tr.status === 'failed';
+  $('make-report').disabled = locked() || tr.status === 'failed';
   await showSummary(inv, rep);
 }
 
@@ -317,7 +341,7 @@ async function run() {
     currentInv = r.id; setStatus(`${r.id} running…`);
     await loadRecall(r.id);
     openStream(r.id); refreshGraph();
-  } catch (e) { running = false; $('run').disabled = false; setStatus(e.message, 'err'); banner(e.message); }
+  } catch (e) { running = false; $('run').disabled = locked(); setStatus(e.message, 'err'); banner(e.message); }
 }
 
 async function loadRecall(inv) {
@@ -385,9 +409,15 @@ window.addEventListener('DOMContentLoaded', async () => {
   initGraph();
   $('run').onclick = run; $('make-report').onclick = makeReport; $('reset').onclick = resetData; $('past').onchange = openPast;
   $('replay').onclick = () => { if (currentInv) playRun(currentInv); };
+  $('unlock').onclick = toggleAdmin;
   $('skip').onclick = () => { if (player) completeReplay(player); };
   $('tx').addEventListener('keydown', (e) => { if (e.key === 'Enter') run(); });
-  await health(); await loadPast();
-  if (readonly && $('past').options.length > 1) { $('past').selectedIndex = 1; openPast(); }  // land on the recorded run and play it
+  await health();
+  if (adminToken) { try { const r = await fetch('/api/admin/check', { headers: { 'X-Admin-Token': adminToken } }); if (!(await r.json()).ok) { adminToken = null; sessionStorage.removeItem('vt_admin'); await health(); } } catch (e) { /* offline */ } }
+  await loadPast();
+  if (readonly && $('past').options.length > 1) {  // land on the newest FINISHED run (not a failed or in-progress live run) and play it
+    const ids = Object.keys(pastMeta), pick = ids.find((i) => pastMeta[i].status === 'finished' && (pastMeta[i].reports || []).length) || ids.find((i) => pastMeta[i].status === 'finished');
+    if (pick) { $('past').value = pick; openPast(); }
+  }
   setInterval(health, 20000);
 });

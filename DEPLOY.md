@@ -26,6 +26,22 @@ FalkorDB Cloud hosts only the database, not the app, so it is used together with
 Measured: the demo graph is about 4 MB (the whole instance ~21 MB), well inside the free tier's 100 MB.
 Caveats of the free tier (per FalkorDB's docs): an instance idle for 1 day is stopped and one idle for 7 days is deleted; there is no persistence or backup; there is no TLS, so use a password you use nowhere else (the data is synthetic). If the instance is stopped or deleted, restart or recreate it and redeploy the app. For that reason Option A on its own (database inside the container) is the more robust choice; use A+ if you want the deployed demo to run on FalkorDB Cloud.
 
+## Live runs on the deployed site (owner only, via an admin token)
+The deployment is read-only for everyone by default (`VEDATRACE_READONLY=1`). To let **only you** start live investigations from the public URL:
+1. In Render > your service > **Environment**, add (type them in the dashboard; never commit them):
+   - `VEDATRACE_ADMIN_TOKEN` = a long random secret you invent (32+ characters)
+   - `VEDATRACE_LLM_PROVIDER` = `openai`
+   - `OPENAI_API_KEY` = your Gemini key
+   - `OPENAI_BASE_URL` = `https://generativelanguage.googleapis.com/v1beta/openai/`
+   - `OPENAI_MODEL` = `gemini-3.1-flash-lite`
+   - `OPENAI_EMBED_MODEL` = `gemini-embedding-001`
+   - `VEDATRACE_MEMORY` = `simple` (the slim image has no Graphiti; the case store gives the recall)
+   Keep the `FALKORDB_*` variables. Do not set `VEDATRACE_READONLY=0`: everyone else must stay locked out.
+2. Redeploy. Open the site: a **🔒 Admin** button appears in the header. Click it, enter the token, and **Run investigation** and **Generate report** unlock for this browser tab (Reset stays locked, so the recording is safe).
+3. A run takes a few minutes and uses about 30-60 Gemini requests (500 per day on the free tier). Keep the tab open while it runs. The new run appears in the dropdown next to the recording; visitors land on the newest *finished* run.
+4. The cloud memory graph needs the history cases once: from your laptop, with the `FALKORDB_*` lines in `.env` pointing at the cloud, run `python -m memory.graphiti_mem seed-history` with `VEDATRACE_MEMORY=simple` and `OPENAI_EMBED_MODEL=gemini-embedding-001` set.
+Click the button again to lock. The token is checked on the server for every write; without it, run/report/reset all return 403.
+
 ## Option B: Hugging Face Spaces
 Docker Spaces need a paid plan on HF now, so this only works with PRO. If you have it: create a Docker Space, then
 ```bash
