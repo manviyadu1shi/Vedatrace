@@ -1,14 +1,14 @@
-# VedaTrace — graph-native AML investigation agents
+# VedaTrace: Graph-Native AML investigation agents
 
 > Two agents investigate a suspicious transaction. **They never talk to each other; they talk through the FalkorDB graph.**
 
-Built for **Graph Hacks (WeMakeDevs × FalkorDB)** — tracks: *01 Agents That Act on Connected Data* (primary), *02 Agent Memory and Coordination*.
+Built for **Graph Hacks (WeMakeDevs × FalkorDB)** Tracks: *01 Agents That Act on Connected Data* (primary), *02 Agent Memory and Coordination*.
 
 **Live demo:** https://vedatrace.onrender.com (read-only replay of a recorded run; the free server sleeps when idle, so the first load can take about a minute).
 
 | Agent | What it does | Reads | Writes |
 |---|---|---|---|
-| **Investigator** | Tool-using LLM loop. Explores the graph, decides its own next step, records what the data supports. | Customer, Account, Device, Transaction, Policy | `Investigation`, `Step` (audit trail), `Evidence`, `Pattern` — each with provenance edges to the exact Transaction/Account/Device nodes |
+| **Investigator** | Tool-using LLM loop. Explores the graph, decides its own next step, records what the data supports. | Customer, Account, Device, Transaction, Policy | `Investigation`, `Step` (audit trail), `Evidence`, `Pattern`, each with provenance edges to the exact Transaction/Account/Device nodes |
 | **Reporter** | Separate process. Input is only an investigation id. | Everything the Investigator wrote + Policy nodes | `VIOLATES` edges (Pattern→Policy), a `Report` node with `CITES` edges, Markdown + JSON |
 | **Memory** | Graphiti + a case store in FalkorDB. | past cases | `Case` episodes; recalled cases appear in the case graph as `PriorCase` nodes |
 
@@ -39,7 +39,7 @@ flowchart LR
   UI -- "spawns processes" --> REPO
 ```
 
-Why a graph for coordination: the Reporter can run hours later, on another machine, and still reconstruct *what was examined, in what order, why, and which exact nodes support each claim* — because that is all stored as nodes and edges, not in an agent's context window.
+Why a graph for coordination: the Reporter can run hours later, on another machine, and still reconstruct *what was examined, in what order, why, and which exact nodes support each claim*, because that is all stored as nodes and edges, not in an agent's context window.
 
 ## The demo case
 `TX-FLAGSHIP` looks ordinary (8,400, moderate, flagged only by a weak monitoring score). The fraud is only visible through several traversals, and the seed (`seed/build_graph.py`, fixed `random.seed(42)`) hides it among realistic noise:
@@ -108,14 +108,14 @@ RUN_E2E=1 E2E_RUNS=3 ../.venv/bin/python -m pytest -q -s tests/test_e2e.py   # r
 ```
 
 ## How the Investigator stays honest
-* **Free tool loop** — the model picks every call from: `get_transaction, get_account_profile, get_neighbors, find_shared_devices, analyze_fanout, trace_flow, find_cycles, shortest_path, list_policies, write_evidence, write_pattern, finish`. Each call needs a stated `reason`, stored on the `Step` node.
+* **Free tool loop**:  the model picks every call from: `get_transaction, get_account_profile, get_neighbors, find_shared_devices, analyze_fanout, trace_flow, find_cycles, shortest_path, list_policies, write_evidence, write_pattern, finish`. Each call needs a stated `reason`, stored on the `Step` node.
 * **Claims are checked against the graph** before they become Evidence: a `RAPID_FANOUT` must cite 3+ transfers from one sender to 3+ recipients inside 7 days; `CIRCULAR_FLOW` must cite transactions that actually close a loop; `SHARED_DEVICE` needs a device plus two accounts of different customers; a `BENIGN_EXPLANATION` (payroll, refund…) needs a basis that is verified (recurring bursts to the same recipients, equal amounts back and forth) or may not contradict the agent's own findings. Ids never returned by a tool are rejected.
-* Tools return small, summarised JSON (ids, counts, top-N) with an `interpretation` that compares an account with its own baseline — so a payroll run is recognised as recurring rather than as a one-off burst.
+* Tools return small, summarised JSON (ids, counts, top-N) with an `interpretation` that compares an account with its own baseline, so a payroll run is recognised as recurring rather than as a one-off burst.
 
 ## Memory (Track 02)
 `memory/graphiti_mem.py`: on `Investigator` start, prior cases similar to the alert are recalled (embedding search over the case store + Graphiti search) and injected into the system prompt as *"may or may not apply"*. They are also written to the case graph as `PriorCase` nodes so the Reporter can compare and cite them (`[CASE-H1]`) with no in-process coupling. When a report is produced the case is remembered (Graphiti episode + case node). Demo history cases are synthetic and labelled `DEMO HISTORY`. `VEDATRACE_MEMORY=off|simple|graphiti|auto`. Any Graphiti failure degrades to the case store; any memory failure degrades to "no prior cases".
 
-Notes on running Graphiti against the current FalkorDB image: graphiti-core 0.30.2 uses a fulltext-index procedure signature that FalkorDB's graph module 6.x rejects — `memory/graphiti_mem.py` patches that at runtime; and Graphiti uses `group_id` as the FalkorDB graph name, so it is pinned to `vedatrace_graphiti`.
+Notes on running Graphiti against the current FalkorDB image: graphiti-core 0.30.2 uses a fulltext-index procedure signature that FalkorDB's graph module 6.x rejects `memory/graphiti_mem.py` patches that at runtime; and Graphiti uses `group_id` as the FalkorDB graph name, so it is pinned to `vedatrace_graphiti`.
 
 ## Honest limitations
 * **Results depend on the model, and a single run is a sample.** Measured on the demo seed: OpenAI `gpt-5.6-luna` found all three ring structures in 6/6 runs (`PROGRESS.md`). The free Gemini `gemini-3.1-flash-lite` is weaker and varies run to run: in about a dozen memory-off runs its shared-device check never passed, while in the two completed memory-on runs it found the shared-device ring both times and all three structures in one of them (the bundled recording). Two runs are too few to say memory is the cause. Provenance and report citations held in every run on every model. The earlier local `qwen2.5:14b` runs were slower and mixed. Our automated red-herring check covers the payroll and marketplace decoys; it did not cover the household device next to the ring until we added `household_near_ring_flagged` to `tests/e2e_checks.py`, so earlier "0 red-herring violations" figures did not include that decoy.
