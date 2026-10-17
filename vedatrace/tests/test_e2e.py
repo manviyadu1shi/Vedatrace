@@ -22,7 +22,8 @@ def test_end_to_end_discovers_ring_and_reports():
         ok_cit, unresolved = chk.report_citations_ok(g, res["report"])
         seqs.append(chk.step_sequence(g, res["investigation"]))
         r = dict(run=res, discovery=d, provenance=chk.provenance_ok(g, res["investigation"]), citations=ok_cit,
-                 unresolved=unresolved, red_herring_violations=chk.red_herrings_clean(g, res["investigation"]))
+                 unresolved=unresolved, red_herring_violations=chk.red_herrings_clean(g, res["investigation"]),
+                 household_near_ring_flagged=chk.household_near_ring_flagged(g, res["investigation"]))  # reported, not gating
         print(r)
         results.append(r)
     passed = [x for x in results if all(x["discovery"].values()) and x["provenance"] and x["citations"] and not x["red_herring_violations"]]

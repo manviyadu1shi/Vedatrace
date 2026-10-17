@@ -187,11 +187,13 @@ def _chat_openai(messages, tools, system, max_tokens):
 # ---- embeddings (used only by the memory layer) -----------------------------------------
 def embed(texts: list) -> list:
     """Local embeddings via Ollama (nomic-embed-text). Anthropic has no embedding endpoint, so memory uses Ollama for this in both modes."""
-    if provider() == "openai" and not os.environ.get("OPENAI_BASE_URL"):  # custom endpoints rarely offer OpenAI embeddings: use Ollama
+    base = os.environ.get("OPENAI_BASE_URL") or None
+    emodel = os.environ.get("OPENAI_EMBED_MODEL") or (None if base else "text-embedding-3-small")  # custom endpoint without OPENAI_EMBED_MODEL -> Ollama
+    if provider() == "openai" and emodel:
         from openai import OpenAI
 
-        r = OpenAI(api_key=os.environ["OPENAI_API_KEY"], timeout=60).embeddings.create(model="text-embedding-3-small", input=list(texts))
-        return [list(d.embedding) for d in r.data]
+        r = OpenAI(api_key=os.environ["OPENAI_API_KEY"], base_url=base, timeout=60).embeddings.create(model=emodel, input=list(texts))
+        return [list(d.embedding)[:1024] for d in r.data]
     import ollama
 
     host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")

@@ -73,3 +73,12 @@ def report_citations_ok(g, report_id):
 
 def step_sequence(g, inv):
     return [r[0] for r in g.ro_query("MATCH (:Investigation {id:$i})-[:HAS_STEP]->(s:Step) RETURN s.tool ORDER BY s.seq", params={"i": inv}).result_set]
+
+
+def household_near_ring_flagged(g, inv):
+    """The flagship sender's legitimate home device (shared with a family member) must not be reported as suspicious.
+    Returns ids of non-BENIGN evidence that rests on that device or on the family member's account."""
+    t = truth()
+    hh = t["benign_household_near_ring"]
+    return [e["id"] for e in evidence(g, inv)
+            if e["kind"] != "BENIGN_EXPLANATION" and (hh["device"] in e["supports"] or any(a != t["sender"] and a in e["supports"] for a in hh["accounts"]))]

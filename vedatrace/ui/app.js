@@ -39,9 +39,11 @@ async function health() {
     db.className = 'badge ' + (h.falkordb.ok ? 'ok' : 'bad');
     llm.textContent = `${h.llm.provider} · ${h.llm.model}`;
     llm.className = 'badge ' + (h.llm.ok ? 'ok' : 'bad');
+    if (h.readonly) { llm.textContent = 'replay · no LLM calls'; llm.className = 'badge off'; llm.title = 'Read-only replay of a recorded run'; }
     mem.textContent = h.memory.enabled ? `memory on · ${h.memory.backend}` : 'memory off';
     mem.className = 'badge ' + (h.memory.enabled ? 'ok' : 'off');
     mem.title = h.memory.detail || '';
+    if (h.readonly && !h.memory.enabled) { mem.textContent = 'memory · shown in recording'; mem.title = 'Recalled cases are stored in the recorded run (Graphiti + case store); no live memory service here'; }
     readonly = !!h.readonly;
     if (readonly) { ['run', 'reset', 'make-report'].forEach((i) => { $(i).disabled = true; $(i).title = 'Read-only replay deployment'; }); }
     const problems = [];
@@ -249,7 +251,7 @@ async function openPast() {
   const rpt = sel.selectedOptions[0].dataset.report;
   resetView(); currentInv = id; $('make-report').disabled = readonly;
   setStatus(`Replaying ${id} from the graph…`);
-  openStream(id); await refreshGraph();
+  openStream(id); await loadRecall(id); await refreshGraph();
   if (rpt) { try { const rep = await api('/api/reports/' + rpt); currentReport = rep; renderReport(rep); } catch (e) { /* none */ } }
 }
 

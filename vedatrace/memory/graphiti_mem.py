@@ -171,15 +171,19 @@ def _build_graphiti():
         llm_client = AnthropicClient(config=LLMConfig(api_key=os.environ["VEDATRACE_API_KEY"], model=llm.ANTHROPIC_MODEL))
     elif llm.provider() == "openai":
         from graphiti_core.llm_client.openai_generic_client import OpenAIGenericClient
-        llm_client = OpenAIGenericClient(config=LLMConfig(api_key=os.environ["OPENAI_API_KEY"], model=os.environ.get("OPENAI_GRAPHITI_MODEL", "gpt-4.1-mini"),
-                                                         small_model=os.environ.get("OPENAI_GRAPHITI_MODEL", "gpt-4.1-mini"), temperature=0.0, max_tokens=4096))
+        base = os.environ.get("OPENAI_BASE_URL") or None  # custom OpenAI-compatible endpoint (e.g. free Gemini) -> use its chat model
+        gmodel = os.environ.get("OPENAI_GRAPHITI_MODEL") or (os.environ.get("OPENAI_MODEL") if base else None) or "gpt-4.1-mini"
+        llm_client = OpenAIGenericClient(config=LLMConfig(api_key=os.environ["OPENAI_API_KEY"], model=gmodel, small_model=gmodel,
+                                                         base_url=base, temperature=0.0, max_tokens=4096))
     else:
         from graphiti_core.llm_client.openai_generic_client import OpenAIGenericClient
         llm_client = OpenAIGenericClient(config=LLMConfig(api_key="ollama", model=llm.model_name(), small_model=llm.model_name(),
                                                          base_url=f"{host}/v1", temperature=0.0, max_tokens=4096))
     if llm.provider() == "openai":
-        embedder = OpenAIEmbedder(config=OpenAIEmbedderConfig(api_key=os.environ["OPENAI_API_KEY"], embedding_model="text-embedding-3-small",
-                                                              embedding_dim=1024))
+        base = os.environ.get("OPENAI_BASE_URL") or None
+        emodel = os.environ.get("OPENAI_EMBED_MODEL") or ("gemini-embedding-001" if base else "text-embedding-3-small")
+        embedder = OpenAIEmbedder(config=OpenAIEmbedderConfig(api_key=os.environ["OPENAI_API_KEY"], base_url=base, embedding_model=emodel,
+                                                              embedding_dim=1024))  # longer vectors are truncated to 1024
     else:
         embedder = OpenAIEmbedder(config=OpenAIEmbedderConfig(api_key="ollama", base_url=f"{host}/v1",
                                                               embedding_model=os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text"),

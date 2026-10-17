@@ -1,0 +1,1689 @@
+{
+ "format": 1,
+ "investigation": "INV-1",
+ "reports": [
+  "RPT-1"
+ ],
+ "nodes": [
+  {
+   "label": "Investigation",
+   "props": {
+    "id": "INV-1",
+    "target_tx": "TX-FLAGSHIP",
+    "status": "finished",
+    "started_ts": 1792233218641,
+    "provider": "openai",
+    "model": "gemini-3.1-flash-lite",
+    "memory_used": true,
+    "recalled": "[\"CASE-H1 (ESCALATED): Hub account fan-out ring (escalated)\", \"CASE-H4 (MONITOR): New-account velocity cluster (monitor)\", \"CASE-H3 (CLEAR): Payroll account with large recurring fan-out (cleared)\"]",
+    "memory_facts": "[\"The business account's recurring payroll payouts resembled rapid fan-out behavior.\", \"The device-linked hub account engaged in structuring by keeping transfer amounts just below the review threshold.\", \"The device-linked hub account performed a rapid fan-out by redistributing funds to eight recipients.\"]",
+    "summary": "Investigation of TX-FLAGSHIP confirmed a money laundering layering scheme (PAT-1, PAT-2, PAT-3, PAT-5) involving shared devices, rapid fan-out, structuring, and circular flow. ACC-1913's fan-out was analyzed and does not fit the recurring payroll criteria. The activity is highly suspicious and warrants escalation.",
+    "finished_ts": 1792233335566,
+    "steps": 27
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S05",
+    "seq": 5,
+    "tool": "write_evidence",
+    "args": "{\"kind\": \"SHARED_DEVICE\", \"supporting_node_ids\": [\"ACC-1913\", \"ACC-2106\", \"DEV-0389\"], \"summary\": \"Sender ACC-1913 and receiver ACC-2106 share device DEV-0389.\", \"confidence\": 1}",
+    "reason": "The sender ACC-1913 and the receiver ACC-2106 share the same device DEV-0389, which is a potential indicator of collusive activity.",
+    "ok": true,
+    "ts": 1792233273079,
+    "result_summary": "{\"evidence_id\": \"EV-1\", \"supported_by\": [\"ACC-1913\", \"ACC-2106\", \"DEV-0389\"], \"next\": \"When all evidence for one structure is recorded, group it with write_pattern (evidence_ids=[EV-...]).\"}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S08",
+    "seq": 8,
+    "tool": "write_evidence",
+    "args": "{\"supporting_node_ids\": [\"ACC-2106\", \"TX-05530\", \"TX-05538\", \"TX-05552\", \"TX-05566\", \"TX-05583\", \"TX-05588\", \"TX-05613\", \"TX-05625\"], \"summary\": \"Account ACC-2106 engaged in a rapid fan-out of 7802.41 across 8 recipients shortly after receiving 8400 from ACC-1913.\", \"kind\": \"RAPID_FANOUT\", \"confidence\": 1}",
+    "reason": "The account ACC-2106 shows a clear rapid fan-out pattern by distributing 8400 received from ACC-1913 to 8 recipients in a very short time.",
+    "ok": true,
+    "ts": 1792233283094,
+    "result_summary": "{\"evidence_id\": \"EV-2\", \"supported_by\": [\"ACC-2106\", \"TX-05530\", \"TX-05538\", \"TX-05552\", \"TX-05566\", \"TX-05583\", \"TX-05588\", \"TX-05613\", \"TX-05625\"], \"next\": \"When all evidence for one structure is recorded, group it with write_pattern (evidence_ids=[EV-...]).\"}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S09",
+    "seq": 9,
+    "tool": "write_evidence",
+    "args": "{\"supporting_node_ids\": [\"ACC-2106\", \"TX-05530\", \"TX-05538\", \"TX-05552\", \"TX-05566\", \"TX-05583\", \"TX-05588\", \"TX-05613\", \"TX-05625\"], \"kind\": \"STRUCTURING_AMOUNTS\", \"confidence\": 1, \"summary\": \"Account ACC-2106 structured transfers just under the 1,000 threshold.\"}",
+    "reason": "The recipient amounts are tightly clustered just under the 1000 threshold (max 988.82), which indicates structuring to avoid review.",
+    "ok": true,
+    "ts": 1792233286671,
+    "result_summary": "{\"evidence_id\": \"EV-3\", \"supported_by\": [\"ACC-2106\", \"TX-05530\", \"TX-05538\", \"TX-05552\", \"TX-05566\", \"TX-05583\", \"TX-05588\", \"TX-05613\", \"TX-05625\"], \"next\": \"When all evidence for one structure is recorded, group it with write_pattern (evidence_ids=[EV-...]).\"}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S12",
+    "seq": 12,
+    "tool": "write_evidence",
+    "args": "{\"supporting_node_ids\": [\"ACC-1913\", \"ACC-1625\", \"ACC-1845\", \"ACC-1880\", \"ACC-2106\", \"TX-FLAGSHIP\", \"TX-05583\", \"TX-05602\", \"TX-05686\", \"TX-05738\"], \"confidence\": 1, \"summary\": \"Circular flow of funds detected involving ACC-1913, ACC-1625, ACC-1845, and ACC-2106.\", \"kind\": \"CIRCULAR_FLOW\"}",
+    "reason": "The money flows through a 5-hop loop from ACC-1913 back to itself through the receiver ACC-2106 and other accounts, indicating layering. I am using the transaction/account ids from one of the cycles detected by find_cycles.",
+    "ok": true,
+    "ts": 1792233293888,
+    "result_summary": "{\"evidence_id\": \"EV-4\", \"supported_by\": [\"ACC-1913\", \"ACC-1625\", \"ACC-1845\", \"ACC-1880\", \"ACC-2106\", \"TX-FLAGSHIP\", \"TX-05583\", \"TX-05602\", \"TX-05686\", \"TX-05738\"], \"next\": \"When all evidence for one structure is recorded, group it with write_pattern (evidence_ids=[EV-...]).\"}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S14",
+    "seq": 14,
+    "tool": "write_pattern",
+    "args": "{\"confidence\": 1, \"summary\": \"Circular flow of funds detected.\", \"pattern_type\": \"CIRCULAR_FLOW\", \"evidence_ids\": [\"EV-4\"]}",
+    "reason": "Circular flow of funds detected between ACC-1913 and ACC-2106.",
+    "ok": true,
+    "ts": 1792233307100,
+    "result_summary": "{\"pattern_id\": \"PAT-1\", \"backed_by\": [\"EV-4\"]}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S15",
+    "seq": 15,
+    "tool": "write_pattern",
+    "args": "{\"evidence_ids\": [\"EV-2\"], \"confidence\": 1, \"pattern_type\": \"RAPID_FANOUT\", \"summary\": \"Rapid fan-out detected on account ACC-2106.\"}",
+    "reason": "Rapid fan-out detected on account ACC-2106.",
+    "ok": true,
+    "ts": 1792233311749,
+    "result_summary": "{\"pattern_id\": \"PAT-2\", \"backed_by\": [\"EV-2\"]}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S16",
+    "seq": 16,
+    "tool": "write_pattern",
+    "args": "{\"summary\": \"Structuring of amounts detected on account ACC-2106.\", \"evidence_ids\": [\"EV-3\"], \"confidence\": 1, \"pattern_type\": \"STRUCTURING\"}",
+    "reason": "Structuring of amounts detected on account ACC-2106.",
+    "ok": true,
+    "ts": 1792233314381,
+    "result_summary": "{\"pattern_id\": \"PAT-3\", \"backed_by\": [\"EV-3\"]}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S13",
+    "seq": 13,
+    "tool": "write_pattern",
+    "args": "{\"summary\": \"Layering scheme involving device sharing, rapid fan-out, structuring, and circular flow of funds.\", \"pattern_type\": \"CIRCULAR_FLOW\", \"evidence_ids\": [\"EV-1\", \"EV-2\", \"EV-3\", \"EV-4\"], \"confidence\": 1}",
+    "reason": "The combination of device sharing, rapid fan-out, structuring, and circular flow strongly indicates a money laundering layering scheme.",
+    "ok": false,
+    "ts": 1792233298293,
+    "result_summary": "{\"error\": \"A CIRCULAR_FLOW pattern can only be backed by evidence of kind ['CIRCULAR_FLOW']; ['EV-1 (SHARED_DEVICE)', 'EV-2 (RAPID_FANOUT)', 'EV-3 (STRUCTURING_AMOUNTS)'] do not fit. Evidence that fits: ['EV-4']. Write one pattern per kind of structure.\"}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S11",
+    "seq": 11,
+    "tool": "write_evidence",
+    "args": "{\"summary\": \"Circular flow of funds detected involving ACC-1913, ACC-1625, ACC-1845, and ACC-2106.\", \"supporting_node_ids\": [\"ACC-1913\", \"ACC-1625\", \"ACC-1845\", \"ACC-2106\", \"TX-FLAGSHIP\"], \"kind\": \"CIRCULAR_FLOW\", \"confidence\": 1}",
+    "reason": "The money flows through a 5-hop loop from ACC-1913 back to itself through the receiver ACC-2106 and other accounts, indicating layering.",
+    "ok": false,
+    "ts": 1792233291332,
+    "result_summary": "{\"error\": \"CIRCULAR_FLOW evidence must cite every Transaction on the cycle (use `cite_ids` of one route from find_cycles).\"}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S10",
+    "seq": 10,
+    "tool": "find_cycles",
+    "args": "{\"max_hops\": 5, \"account_id\": \"ACC-1913\"}",
+    "reason": "I want to see if the money eventually cycles back to the sender or the sender's device cluster to confirm layering.",
+    "ok": true,
+    "ts": 1792233289057,
+    "result_summary": "{\"account\": \"ACC-1913\", \"max_hops\": 5, \"interpretation\": [\"8 distinct cycle route(s) returning to ACC-1913: 7 multi-hop loop(s) through 3+ accounts, 1 two-account back-and-forth (reciprocal exchange, often benign: refunds, family transfers, bill splitting).\"], \"distinct_routes\": 8, \"cycles\": [{\"accounts\": [\"ACC-1913\", \"ACC-1625\", \"ACC-1055\", \"ACC-2063\"], \"hops\": 4, \"shape\": \"multi_hop_loop\", \"cite_ids\": [\"ACC-1913\", \"ACC-1625\", \"ACC-1055\", \"ACC-2063\", \"TX-02671\", \"TX-04869\", \"TX-05498\", \"TX-0573…"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S07",
+    "seq": 7,
+    "tool": "list_policies",
+    "args": "{}",
+    "reason": "I need to see if there are any thresholds that the transaction amounts might be structured against.",
+    "ok": true,
+    "ts": 1792233278431,
+    "result_summary": "{\"policies\": [{\"id\": \"POL-LARGE-CASH\", \"title\": \"Large cash transaction reporting\", \"description\": \"Cash deposits or withdrawals above the cash reporting limit must be reported.\"}, {\"id\": \"POL-LAYERING\", \"title\": \"Layering through circular fund movement\", \"description\": \"Funds moved through a chain of accounts and returned to the originator or their associated device cluster with no apparent economic purpose.\"}, {\"id\": \"POL-NEW-ACCOUNT-VELOCITY\", \"title\": \"High-velocity activity on newly opened …"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S06",
+    "seq": 6,
+    "tool": "analyze_fanout",
+    "args": "{\"account_id\": \"ACC-2106\"}",
+    "reason": "I want to see if the receiver account has a history of rapid redistribution of funds, which is a common layering indicator.",
+    "ok": true,
+    "ts": 1792233275271,
+    "result_summary": "{\"account\": \"ACC-2106\", \"window_days\": 2.0, \"interpretation\": [\"UNUSUAL: 8 distinct recipients inside 2 days, far above this account's norm of 0.\", \"If not explained by a legitimate recurring purpose, record RAPID_FANOUT evidence using cite_ids_for_burst.\", \"Burst amounts are tightly clustered between 958.65 and 988.82: compare with policy thresholds (list_policies); if just below a threshold also record STRUCTURING_AMOUNTS evidence with the same cite ids.\"], \"assessment\": {\"burst_vs_typical\": \"…"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S04",
+    "seq": 4,
+    "tool": "find_shared_devices",
+    "args": "{\"account_id\": \"ACC-1913\"}",
+    "reason": "I want to see if other customers use the same devices as the sender, which could indicate a shared device cluster.",
+    "ok": true,
+    "ts": 1792233266525,
+    "result_summary": "{\"account\": \"ACC-1913\", \"devices_used\": [\"DEV-0389\", \"DEV-0390\"], \"interpretation\": [\"DEV-0389 is also used by 2 other account(s) owned by 2 different customer(s): ['ACC-1625', 'ACC-2106'].\", \"DEV-0390 is also used by 1 other account(s) owned by 1 different customer(s): ['ACC-1370'].\"], \"shared\": [{\"device\": \"DEV-0389\", \"kind\": \"mobile\", \"other_accounts\": [{\"account\": \"ACC-1625\", \"owner\": \"CUST-1301\", \"owner_name\": \"Vihaan Kapoor\", \"same_owner\": false}, {\"account\": \"ACC-1913\", \"owner\": \"CUST-129…"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S03",
+    "seq": 3,
+    "tool": "get_account_profile",
+    "args": "{\"account_id\": \"ACC-2106\"}",
+    "reason": "I need to see the account profile for the receiver to understand their activity patterns.",
+    "ok": true,
+    "ts": 1792233262982,
+    "result_summary": "{\"id\": \"ACC-2106\", \"owner\": {\"id\": \"CUST-1300\", \"name\": \"Arjun Rao\", \"segment\": \"retail\"}, \"type\": \"checking\", \"opened\": \"2025-01-27\", \"devices\": [\"DEV-0389\"], \"sent\": {\"tx_count\": 8, \"distinct_recipients\": 8, \"total\": 7802.41}, \"received\": {\"tx_count\": 21, \"distinct_senders\": 21, \"total\": 10501.57}, \"first_activity\": \"2026-07-05\", \"last_activity\": \"2026-09-16\"}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S02",
+    "seq": 2,
+    "tool": "get_account_profile",
+    "args": "{\"account_id\": \"ACC-1913\"}",
+    "reason": "I need to see the account profile for the sender to understand their activity patterns.",
+    "ok": true,
+    "ts": 1792233224549,
+    "result_summary": "{\"id\": \"ACC-1913\", \"owner\": {\"id\": \"CUST-1299\", \"name\": \"Ravi Pillai\", \"segment\": \"retail\"}, \"type\": \"checking\", \"opened\": \"2022-08-31\", \"devices\": [\"DEV-0389\", \"DEV-0390\"], \"sent\": {\"tx_count\": 61, \"distinct_recipients\": 29, \"total\": 17297.2}, \"received\": {\"tx_count\": 6, \"distinct_senders\": 2, \"total\": 8309.32}, \"first_activity\": \"2026-07-01\", \"last_activity\": \"2026-09-02\"}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S01",
+    "seq": 1,
+    "tool": "get_transaction",
+    "args": "{\"tx_id\": \"TX-FLAGSHIP\"}",
+    "reason": "I need to identify the sender and receiver of the alerted transaction TX-FLAGSHIP to start my investigation.",
+    "ok": true,
+    "ts": 1792233222984,
+    "result_summary": "{\"id\": \"TX-FLAGSHIP\", \"sender\": \"ACC-1913\", \"receiver\": \"ACC-2106\", \"amount\": 8400.0, \"time\": \"2026-08-31 09:00\", \"channel\": \"transfer\", \"monitor_score\": 0.54, \"alerted\": true, \"currency\": \"USD\"}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S17",
+    "seq": 17,
+    "tool": "write_pattern",
+    "args": "{\"pattern_type\": \"SHARED_DEVICE_CLUSTER\", \"summary\": \"Shared device cluster between ACC-1913 and ACC-2106.\", \"confidence\": 1, \"evidence_ids\": [\"EV-1\"]}",
+    "reason": "Shared device cluster between ACC-1913 and ACC-2106.",
+    "ok": true,
+    "ts": 1792233316109,
+    "result_summary": "{\"pattern_id\": \"PAT-4\", \"backed_by\": [\"EV-1\"]}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S19",
+    "seq": 19,
+    "tool": "write_evidence",
+    "args": "{\"summary\": \"Sender ACC-1913 and account ACC-1370 share device DEV-0390.\", \"supporting_node_ids\": [\"ACC-1913\", \"ACC-1370\", \"DEV-0390\"], \"confidence\": 1, \"kind\": \"SHARED_DEVICE\"}",
+    "reason": "Account ACC-1370 is also sharing device DEV-0390 with ACC-1913.",
+    "ok": true,
+    "ts": 1792233319856,
+    "result_summary": "{\"evidence_id\": \"EV-5\", \"supported_by\": [\"ACC-1913\", \"ACC-1370\", \"DEV-0390\"], \"next\": \"When all evidence for one structure is recorded, group it with write_pattern (evidence_ids=[EV-...]).\"}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S20",
+    "seq": 20,
+    "tool": "write_pattern",
+    "args": "{\"summary\": \"Multiple accounts sharing devices with the sender ACC-1913.\", \"confidence\": 1, \"evidence_ids\": [\"EV-1\", \"EV-5\"], \"pattern_type\": \"SHARED_DEVICE_CLUSTER\"}",
+    "reason": "Multiple accounts sharing devices with the sender ACC-1913.",
+    "ok": true,
+    "ts": 1792233321198,
+    "result_summary": "{\"pattern_id\": \"PAT-5\", \"backed_by\": [\"EV-1\", \"EV-5\"]}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S27",
+    "seq": 27,
+    "tool": "finish",
+    "args": "{\"summary\": \"Investigation of TX-FLAGSHIP confirmed a money laundering layering scheme (PAT-1, PAT-2, PAT-3, PAT-5) involving shared devices, rapid fan-out, structuring, and circular flow. ACC-1913's fan-out was analyzed and does not fit the recurring payroll criteria. The activity is highly suspicious and warrants escalation.\"}",
+    "reason": "I have completed the investigation. While ACC-1913 shows frequent outbound bursts, they lack the high recipient overlap characteristic of payroll. The evidence of layering (shared devices, rapid fan-out, structuring, and circular flow) involving the alerted transaction TX-FLAGSHIP and ACC-2106 remains conclusive.",
+    "ok": true,
+    "ts": 1792233335564,
+    "result_summary": "{\"status\": \"finished\"}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S26",
+    "seq": 26,
+    "tool": "write_evidence",
+    "args": "{\"summary\": \"Sender ACC-1913 shows recurring bursts indicative of regular payments.\", \"confidence\": 0.8, \"supporting_node_ids\": [\"ACC-1913\"], \"benign_basis\": \"RECURRING_PAYOUTS\", \"kind\": \"BENIGN_EXPLANATION\"}",
+    "reason": "The rapid fan-out behavior for ACC-1913 shows recurring bursts over time, which suggests legitimate recurring payments or payroll, rather than a suspicious one-off event.",
+    "ok": false,
+    "ts": 1792233334004,
+    "result_summary": "{\"error\": \"Graph check failed: none of the cited accounts shows repeated bursts to the same recipients (payroll-like). Cite the paying account, and only claim RECURRING_PAYOUTS if analyze_fanout showed recurring bursts with high overlap.\"}"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S25",
+    "seq": 25,
+    "tool": "analyze_fanout",
+    "args": "{\"account_id\": \"ACC-1913\"}",
+    "reason": "Analyzing fan-out for the sender account ACC-1913 to be absolutely thorough, even though it was the primary account investigated.",
+    "ok": true,
+    "ts": 1792233332284,
+    "result_summary": "{\"account\": \"ACC-1913\", \"window_days\": 2.0, \"interpretation\": [\"UNUSUAL: 8 distinct recipients inside 2 days, far above this account's norm of 1.\", \"If not explained by a legitimate recurring purpose, record RAPID_FANOUT evidence using cite_ids_for_burst.\", \"8 separate bursts with 0% recipient overlap: a recurring flow (e.g. payroll/payouts) rather than a one-off.\"], \"assessment\": {\"burst_vs_typical\": \"8 distinct recipients in the busiest window vs typical 1\", \"unusual_burst\": true, \"amounts_tig…"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S24",
+    "seq": 24,
+    "tool": "finish",
+    "args": "{\"summary\": \"Investigation of TX-FLAGSHIP identified a money laundering layering scheme involving shared device cluster (PAT-5), rapid fan-out (PAT-2), structuring (PAT-3), and circular flow (PAT-1) between ACC-1913, ACC-2106, and others. Other accounts linked to the device cluster did not show suspicious fan-out behavior. The evidence is conclusive for escalation.\"}",
+    "reason": "I have analyzed the fan-out for the other device-linked accounts (ACC-1625 and ACC-1370) and found no evidence of suspicious activity. I have already recorded all suspicious findings (SHARED_DEVICE_CLUSTER, RAPID_FANOUT, STRUCTURING, CIRCULAR_FLOW) and grouped them into patterns. The investigation is complete.",
+    "ok": false,
+    "ts": 1792233330240,
+    "result_summary": "{\"error\": \"Self-review before finishing. Tool results flagged these notable findings that no Evidence yet cites: none. Record each as Evidence (from the tool's cite_ids), or as BENIGN_EXPLANATION with a basis if it is legitimate, or leave it out only if the data does not support it. Evidence not yet grouped into any Pattern: none (each structure needs a write_pattern; one pattern per kind). Evidence so far: ['EV-1:SHARED_DEVICE', 'EV-2:RAPID_FANOUT', 'EV-3:STRUCTURING_AMOUNTS', 'EV-4:CIRCULAR_FL…"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S23",
+    "seq": 23,
+    "tool": "analyze_fanout",
+    "args": "{\"account_id\": \"ACC-1370\"}",
+    "reason": "Checking fan-out for account ACC-1370, which is part of the shared device cluster, to ensure there's no suspicious activity.",
+    "ok": true,
+    "ts": 1792233327684,
+    "result_summary": "{\"account\": \"ACC-1370\", \"window_days\": 2.0, \"interpretation\": [\"No unusual recipient burst compared with this account's own baseline.\"], \"assessment\": {\"burst_vs_typical\": \"1 distinct recipients in the busiest window vs typical 0\", \"unusual_burst\": false, \"amounts_tightly_clustered\": false, \"amount_min_max\": [202.91, 202.91]}, \"cite_ids_for_burst\": [\"ACC-1370\", \"TX-02983\"], \"outgoing_tx\": 5, \"distinct_recipients_overall\": 1, \"busiest_window\": {\"start\": \"2026-08-02 22:49\", \"end\": \"2026-08-02 22:4…"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S22",
+    "seq": 22,
+    "tool": "analyze_fanout",
+    "args": "{\"account_id\": \"ACC-1625\"}",
+    "reason": "Checking fan-out for another account linked to the suspicious device cluster to see if it is also involved in layering.",
+    "ok": true,
+    "ts": 1792233325629,
+    "result_summary": "{\"account\": \"ACC-1625\", \"window_days\": 2.0, \"interpretation\": [\"No unusual recipient burst compared with this account's own baseline.\"], \"assessment\": {\"burst_vs_typical\": \"1 distinct recipients in the busiest window vs typical 0\", \"unusual_burst\": false, \"amounts_tightly_clustered\": false, \"amount_min_max\": [7152.58, 7152.58]}, \"cite_ids_for_burst\": [\"ACC-1625\", \"TX-05738\"], \"outgoing_tx\": 1, \"distinct_recipients_overall\": 1, \"busiest_window\": {\"start\": \"2026-09-02 15:00\", \"end\": \"2026-09-02 15…"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S21",
+    "seq": 21,
+    "tool": "finish",
+    "args": "{\"summary\": \"Investigation of TX-FLAGSHIP revealed a comprehensive money laundering scheme involving a shared device cluster (PAT-5), rapid fan-out (PAT-2), structuring (PAT-3), and circular flow (PAT-1). The activity is highly suspicious.\"}",
+    "reason": "I have now recorded all findings, including the additional shared device found in the self-review, and grouped them into patterns.",
+    "ok": false,
+    "ts": 1792233323120,
+    "result_summary": "{\"error\": \"Self-review before finishing. Tool results flagged these notable findings that no Evidence yet cites: none. Record each as Evidence (from the tool's cite_ids), or as BENIGN_EXPLANATION with a basis if it is legitimate, or leave it out only if the data does not support it. Evidence not yet grouped into any Pattern: none (each structure needs a write_pattern; one pattern per kind). Evidence so far: ['EV-1:SHARED_DEVICE', 'EV-2:RAPID_FANOUT', 'EV-3:STRUCTURING_AMOUNTS', 'EV-4:CIRCULAR_FL…"
+   }
+  },
+  {
+   "label": "Step",
+   "props": {
+    "id": "INV-1-S18",
+    "seq": 18,
+    "tool": "finish",
+    "args": "{\"summary\": \"Investigation of TX-FLAGSHIP revealed a clear money laundering scheme involving shared device cluster (PAT-4), rapid fan-out (PAT-2), structuring (PAT-3), and circular flow (PAT-1) between ACC-1913, ACC-2106, and connected accounts. The activity is highly suspicious and warrants escalation.\"}",
+    "reason": "I have thoroughly investigated the alerted transaction and confirmed several indicators of money laundering including shared devices, rapid fan-out, structuring, and circular flow. I am now finishing the investigation.",
+    "ok": false,
+    "ts": 1792233318197,
+    "result_summary": "{\"error\": \"Self-review before finishing. Tool results flagged these notable findings that no Evidence yet cites: [\\\"SHARED_DEVICE: DEV-0390 shared by accounts of different customers (ACC-1913 and ['ACC-1370'])\\\"]. Record each as Evidence (from the tool's cite_ids), or as BENIGN_EXPLANATION with a basis if it is legitimate, or leave it out only if the data does not support it. Evidence not yet grouped into any Pattern: none (each structure needs a write_pattern; one pattern per kind). Evidence so…"
+   }
+  },
+  {
+   "label": "Evidence",
+   "props": {
+    "id": "EV-1",
+    "kind": "SHARED_DEVICE",
+    "summary": "Sender ACC-1913 and receiver ACC-2106 share device DEV-0389.",
+    "confidence": 1.0,
+    "investigation": "INV-1",
+    "basis": "",
+    "created_ts": 1792233273089
+   }
+  },
+  {
+   "label": "Evidence",
+   "props": {
+    "id": "EV-2",
+    "kind": "RAPID_FANOUT",
+    "summary": "Account ACC-2106 engaged in a rapid fan-out of 7802.41 across 8 recipients shortly after receiving 8400 from ACC-1913.",
+    "confidence": 1.0,
+    "investigation": "INV-1",
+    "basis": "",
+    "created_ts": 1792233283112
+   }
+  },
+  {
+   "label": "Evidence",
+   "props": {
+    "id": "EV-3",
+    "kind": "STRUCTURING_AMOUNTS",
+    "summary": "Account ACC-2106 structured transfers just under the 1,000 threshold.",
+    "confidence": 1.0,
+    "investigation": "INV-1",
+    "basis": "",
+    "created_ts": 1792233286688
+   }
+  },
+  {
+   "label": "Evidence",
+   "props": {
+    "id": "EV-4",
+    "kind": "CIRCULAR_FLOW",
+    "summary": "Circular flow of funds detected involving ACC-1913, ACC-1625, ACC-1845, and ACC-2106.",
+    "confidence": 1.0,
+    "investigation": "INV-1",
+    "basis": "",
+    "created_ts": 1792233293911
+   }
+  },
+  {
+   "label": "Pattern",
+   "props": {
+    "id": "PAT-1",
+    "pattern_type": "CIRCULAR_FLOW",
+    "summary": "Circular flow of funds detected.",
+    "confidence": 1.0,
+    "investigation": "INV-1",
+    "created_ts": 1792233307104
+   }
+  },
+  {
+   "label": "Pattern",
+   "props": {
+    "id": "PAT-2",
+    "pattern_type": "RAPID_FANOUT",
+    "summary": "Rapid fan-out detected on account ACC-2106.",
+    "confidence": 1.0,
+    "investigation": "INV-1",
+    "created_ts": 1792233311753
+   }
+  },
+  {
+   "label": "Pattern",
+   "props": {
+    "id": "PAT-3",
+    "pattern_type": "STRUCTURING",
+    "summary": "Structuring of amounts detected on account ACC-2106.",
+    "confidence": 1.0,
+    "investigation": "INV-1",
+    "created_ts": 1792233314385
+   }
+  },
+  {
+   "label": "Pattern",
+   "props": {
+    "id": "PAT-4",
+    "pattern_type": "SHARED_DEVICE_CLUSTER",
+    "summary": "Shared device cluster between ACC-1913 and ACC-2106.",
+    "confidence": 1.0,
+    "investigation": "INV-1",
+    "created_ts": 1792233316112
+   }
+  },
+  {
+   "label": "Evidence",
+   "props": {
+    "id": "EV-5",
+    "kind": "SHARED_DEVICE",
+    "summary": "Sender ACC-1913 and account ACC-1370 share device DEV-0390.",
+    "confidence": 1.0,
+    "investigation": "INV-1",
+    "basis": "",
+    "created_ts": 1792233319872
+   }
+  },
+  {
+   "label": "Pattern",
+   "props": {
+    "id": "PAT-5",
+    "pattern_type": "SHARED_DEVICE_CLUSTER",
+    "summary": "Multiple accounts sharing devices with the sender ACC-1913.",
+    "confidence": 1.0,
+    "investigation": "INV-1",
+    "created_ts": 1792233321201
+   }
+  },
+  {
+   "label": "Report",
+   "props": {
+    "id": "RPT-1",
+    "investigation": "INV-1",
+    "markdown": "# AML Investigation Report: TX-FLAGSHIP\n*Investigation INV-1 · status finished · produced by openai/gemini-3.1-flash-lite*  \n*Alerted transaction TX-FLAGSHIP: ACC-1913 → ACC-2106, amount 8400.0*\n\n## Recommendation: **ESCALATE** (confidence 1.00)\nThe transaction exhibits a definitive pattern of layering and structuring supported by device-sharing evidence, indicating deliberate efforts to evade regulatory controls. The activity is consistent with known money laundering typologies and lacks any legitimate business rationale.\n\n**A human analyst makes the final decision.** This report is decision support generated from graph evidence; it does not constitute a determination of wrongdoing.\n\n## Executive summary\nAn investigation into TX-FLAGSHIP (8,400 transfer from ACC-1913 to ACC-2106) identified multiple indicators of a money laundering layering scheme. Evidence confirms that the accounts share devices, perform rapid fan-out transactions, engage in structuring, and participate in a circular flow of funds. Due to the high-risk nature of these coordinated patterns and the lack of legitimate business purpose, immediate escalation is recommended.\n\n## Findings\n### [PAT-1] CIRCULAR_FLOW (confidence 1.0)\nCircular flow of funds detected.\n- [EV-4] **CIRCULAR_FLOW**: Circular flow of funds detected involving ACC-1913, ACC-1625, ACC-1845, and ACC-2106. — supported by [ACC-1625], [ACC-1845], [ACC-1880], [ACC-1913], [ACC-2106], [TX-05583], [TX-05602], [TX-05686], [TX-05738], [TX-FLAGSHIP]\n- Violates [POL-LAYERING] *Layering through circular fund movement* (severity HIGH, confidence 1.00): The circular flow of funds detected in EV-4 confirms that funds moved through a chain of accounts (ACC-1913, ACC-1625, ACC-1845, ACC-2106) and returned to an account within the same circular path or device cluster, indicating potential layering.\n\n### [PAT-2] RAPID_FANOUT (confidence 1.0)\nRapid fan-out detected on account ACC-2106.\n- [EV-2] **RAPID_FANOUT**: Account ACC-2106 engaged in a rapid fan-out of 7802.41 across 8 recipients shortly after receiving 8400 from ACC-1913. — supported by [ACC-2106], [TX-05530], [TX-05538], [TX-05552], [TX-05566], [TX-05583], [TX-05588], [TX-05613], [TX-05625]\n- Violates [POL-RAPID-FANOUT] *Rapid fan-out to many recipients* (severity HIGH, confidence 1.00): The rapid fan-out pattern identified in EV-2 shows that account ACC-2106 distributed funds across 8 recipients immediately after receiving them from ACC-1913, which lacks a documented legitimate business purpose (as noted in the investigation summary).\n\n### [PAT-3] STRUCTURING (confidence 1.0)\nStructuring of amounts detected on account ACC-2106.\n- [EV-3] **STRUCTURING_AMOUNTS**: Account ACC-2106 structured transfers just under the 1,000 threshold. — supported by [ACC-2106], [TX-05530], [TX-05538], [TX-05552], [TX-05566], [TX-05583], [TX-05588], [TX-05613], [TX-05625]\n- Violates [POL-STRUCTURING] *Structuring below reporting threshold* (severity HIGH, confidence 1.00): The pattern identifies structuring in EV-3, where account ACC-2106 executed transfers just under the 1,000 threshold, which is a classic indicator of attempting to avoid transaction review thresholds.\n\n### [PAT-4] SHARED_DEVICE_CLUSTER (confidence 1.0)\nShared device cluster between ACC-1913 and ACC-2106.\n- [EV-1] **SHARED_DEVICE**: Sender ACC-1913 and receiver ACC-2106 share device DEV-0389. — supported by [ACC-1913], [ACC-2106], [DEV-0389]\n- Violates [POL-SHARED-DEVICE] *Undisclosed device sharing across unrelated customers* (severity MEDIUM, confidence 1.00): Evidence EV-1 shows account ACC-1913 and ACC-2106 share device DEV-0389, which constitutes undisclosed device sharing between unrelated accounts. This is a supporting indicator of suspicious activity.\n\n### [PAT-5] SHARED_DEVICE_CLUSTER (confidence 1.0)\nMultiple accounts sharing devices with the sender ACC-1913.\n- [EV-1] **SHARED_DEVICE**: Sender ACC-1913 and receiver ACC-2106 share device DEV-0389. — supported by [ACC-1913], [ACC-2106], [DEV-0389]\n- [EV-5] **SHARED_DEVICE**: Sender ACC-1913 and account ACC-1370 share device DEV-0390. — supported by [ACC-1370], [ACC-1913], [DEV-0390]\n- Violates [POL-SHARED-DEVICE] *Undisclosed device sharing across unrelated customers* (severity MEDIUM, confidence 1.00): Evidence EV-1 and EV-5 demonstrate that sender ACC-1913 shares devices (DEV-0389 and DEV-0390) with multiple accounts (ACC-2106 and ACC-1370), suggesting undisclosed device sharing across unrelated customers.\n\n## Analysis\nThe investigation into TX-FLAGSHIP reveals a complex layering scheme characterized by shared devices, rapid fan-out, and structuring [PAT-1, PAT-2, PAT-3, PAT-5]. The sender, ACC-1913, shares multiple devices (DEV-0389, DEV-0390) with other accounts, including the receiver ACC-2106 [EV-1, EV-5, PAT-4, PAT-5]. Following the receipt of 8,400 from ACC-1913, ACC-2106 engaged in rapid fan-out activity across eight recipients [EV-2, PAT-2] while structuring these transfers just under the 1,000 reporting threshold [EV-3, PAT-3]. Furthermore, a circular flow of funds involving ACC-1913, ACC-1625, ACC-1845, and ACC-2106 confirms that these transactions are part of an interconnected movement of funds [EV-4, PAT-1]. This case strongly mirrors [CASE-H1], which involved a similar device-linked hub account using rapid fan-out, structuring, and circular flows to obscure the origin of funds.\n\n## What was ruled out\nNo benign explanations were recorded by the Investigator.\n\n## Prior cases recalled from memory\n- [CASE-H1] **ESCALATED** — Hub account fan-out ring (escalated) *(synthetic demo history)*\n- [CASE-H4] **MONITOR** — New-account velocity cluster (monitor) *(synthetic demo history)*\n- [CASE-H3] **CLEAR** — Payroll account with large recurring fan-out (cleared) *(synthetic demo history)*\n\n## Reasoning path (Investigator steps)\n1. [INV-1-S01] `get_transaction` — I need to identify the sender and receiver of the alerted transaction TX-FLAGSHIP to start my investigation.\n2. [INV-1-S02] `get_account_profile` — I need to see the account profile for the sender to understand their activity patterns.\n3. [INV-1-S03] `get_account_profile` — I need to see the account profile for the receiver to understand their activity patterns.\n4. [INV-1-S04] `find_shared_devices` — I want to see if other customers use the same devices as the sender, which could indicate a shared device cluster.\n5. [INV-1-S05] `write_evidence` — The sender ACC-1913 and the receiver ACC-2106 share the same device DEV-0389, which is a potential indicator of collusive activity.\n6. [INV-1-S06] `analyze_fanout` — I want to see if the receiver account has a history of rapid redistribution of funds, which is a common layering indicator.\n7. [INV-1-S07] `list_policies` — I need to see if there are any thresholds that the transaction amounts might be structured against.\n8. [INV-1-S08] `write_evidence` — The account ACC-2106 shows a clear rapid fan-out pattern by distributing 8400 received from ACC-1913 to 8 recipients in a very short time.\n9. [INV-1-S09] `write_evidence` — The recipient amounts are tightly clustered just under the 1000 threshold (max 988.82), which indicates structuring to avoid review.\n10. [INV-1-S10] `find_cycles` — I want to see if the money eventually cycles back to the sender or the sender's device cluster to confirm layering.\n11. [INV-1-S11] `write_evidence` *(rejected/error)* — The money flows through a 5-hop loop from ACC-1913 back to itself through the receiver ACC-2106 and other accounts, indicating layering.\n12. [INV-1-S12] `write_evidence` — The money flows through a 5-hop loop from ACC-1913 back to itself through the receiver ACC-2106 and other accounts, indicating layering. I am using the transaction/account ids from one of the cycles detected by find_cycles.\n13. [INV-1-S13] `write_pattern` *(rejected/error)* — The combination of device sharing, rapid fan-out, structuring, and circular flow strongly indicates a money laundering layering scheme.\n14. [INV-1-S14] `write_pattern` — Circular flow of funds detected between ACC-1913 and ACC-2106.\n15. [INV-1-S15] `write_pattern` — Rapid fan-out detected on account ACC-2106.\n16. [INV-1-S16] `write_pattern` — Structuring of amounts detected on account ACC-2106.\n17. [INV-1-S17] `write_pattern` — Shared device cluster between ACC-1913 and ACC-2106.\n18. [INV-1-S18] `finish` *(rejected/error)* — I have thoroughly investigated the alerted transaction and confirmed several indicators of money laundering including shared devices, rapid fan-out, structuring, and circular flow. I am now finishing the investigation.\n19. [INV-1-S19] `write_evidence` — Account ACC-1370 is also sharing device DEV-0390 with ACC-1913.\n20. [INV-1-S20] `write_pattern` — Multiple accounts sharing devices with the sender ACC-1913.\n21. [INV-1-S21] `finish` *(rejected/error)* — I have now recorded all findings, including the additional shared device found in the self-review, and grouped them into patterns.\n22. [INV-1-S22] `analyze_fanout` — Checking fan-out for another account linked to the suspicious device cluster to see if it is also involved in layering.\n23. [INV-1-S23] `analyze_fanout` — Checking fan-out for account ACC-1370, which is part of the shared device cluster, to ensure there's no suspicious activity.\n24. [INV-1-S24] `finish` *(rejected/error)* — I have analyzed the fan-out for the other device-linked accounts (ACC-1625 and ACC-1370) and found no evidence of suspicious activity. I have already recorded all suspicious findings (SHARED_DEVICE_CLUSTER, RAPID_FANOUT, STRUCTURING, CIRCULAR_FLOW) and grouped them into patterns. The investigation is complete.\n25. [INV-1-S25] `analyze_fanout` — Analyzing fan-out for the sender account ACC-1913 to be absolutely thorough, even though it was the primary account investigated.\n26. [INV-1-S26] `write_evidence` *(rejected/error)* — The rapid fan-out behavior for ACC-1913 shows recurring bursts over time, which suggests legitimate recurring payments or payroll, rather than a suspicious one-off event.\n27. [INV-1-S27] `finish` — I have completed the investigation. While ACC-1913 shows frequent outbound bursts, they lack the high recipient overlap characteristic of payroll. The evidence of layering (shared devices, rapid fan-out, structuring, and circular flow) involving the alerted transaction TX-FLAGSHIP and ACC-2106 remains conclusive.\n\n---\n**A human analyst makes the final decision.** This report is decision support generated from graph evidence; it does not constitute a determination of wrongdoing.",
+    "json": "{\"investigation\": \"INV-1\", \"target_tx\": \"TX-FLAGSHIP\", \"recommendation\": \"ESCALATE\", \"confidence\": 1.0, \"executive_summary\": \"An investigation into TX-FLAGSHIP (8,400 transfer from ACC-1913 to ACC-2106) identified multiple indicators of a money laundering layering scheme. Evidence confirms that the accounts share devices, perform rapid fan-out transactions, engage in structuring, and participate in a circular flow of funds. Due to the high-risk nature of these coordinated patterns and the lack of legitimate business purpose, immediate escalation is recommended.\", \"analysis\": \"The investigation into TX-FLAGSHIP reveals a complex layering scheme characterized by shared devices, rapid fan-out, and structuring [PAT-1, PAT-2, PAT-3, PAT-5]. The sender, ACC-1913, shares multiple devices (DEV-0389, DEV-0390) with other accounts, including the receiver ACC-2106 [EV-1, EV-5, PAT-4, PAT-5]. Following the receipt of 8,400 from ACC-1913, ACC-2106 engaged in rapid fan-out activity across eight recipients [EV-2, PAT-2] while structuring these transfers just under the 1,000 reporting threshold [EV-3, PAT-3]. Furthermore, a circular flow of funds involving ACC-1913, ACC-1625, ACC-1845, and ACC-2106 confirms that these transactions are part of an interconnected movement of funds [EV-4, PAT-1]. This case strongly mirrors [CASE-H1], which involved a similar device-linked hub account using rapid fan-out, structuring, and circular flows to obscure the origin of funds.\", \"patterns\": [{\"id\": \"PAT-1\", \"type\": \"CIRCULAR_FLOW\", \"summary\": \"Circular flow of funds detected.\", \"confidence\": 1.0, \"step\": \"INV-1-S14\", \"evidence\": [\"EV-4\"]}, {\"id\": \"PAT-2\", \"type\": \"RAPID_FANOUT\", \"summary\": \"Rapid fan-out detected on account ACC-2106.\", \"confidence\": 1.0, \"step\": \"INV-1-S15\", \"evidence\": [\"EV-2\"]}, {\"id\": \"PAT-3\", \"type\": \"STRUCTURING\", \"summary\": \"Structuring of amounts detected on account ACC-2106.\", \"confidence\": 1.0, \"step\": \"INV-1-S16\", \"evidence\": [\"EV-3\"]}, {\"id\": \"PAT-4\", \"type\": \"SHARED_DEVICE_CLUSTER\", \"summary\": \"Shared device cluster between ACC-1913 and ACC-2106.\", \"confidence\": 1.0, \"step\": \"INV-1-S17\", \"evidence\": [\"EV-1\"]}, {\"id\": \"PAT-5\", \"type\": \"SHARED_DEVICE_CLUSTER\", \"summary\": \"Multiple accounts sharing devices with the sender ACC-1913.\", \"confidence\": 1.0, \"step\": \"INV-1-S20\", \"evidence\": [\"EV-1\", \"EV-5\"]}], \"evidence\": [{\"id\": \"EV-1\", \"kind\": \"SHARED_DEVICE\", \"summary\": \"Sender ACC-1913 and receiver ACC-2106 share device DEV-0389.\", \"confidence\": 1.0, \"step\": \"INV-1-S05\", \"supports\": [\"ACC-1913\", \"ACC-2106\", \"DEV-0389\"]}, {\"id\": \"EV-2\", \"kind\": \"RAPID_FANOUT\", \"summary\": \"Account ACC-2106 engaged in a rapid fan-out of 7802.41 across 8 recipients shortly after receiving 8400 from ACC-1913.\", \"confidence\": 1.0, \"step\": \"INV-1-S08\", \"supports\": [\"ACC-2106\", \"TX-05530\", \"TX-05538\", \"TX-05552\", \"TX-05566\", \"TX-05583\", \"TX-05588\", \"TX-05613\", \"TX-05625\"]}, {\"id\": \"EV-3\", \"kind\": \"STRUCTURING_AMOUNTS\", \"summary\": \"Account ACC-2106 structured transfers just under the 1,000 threshold.\", \"confidence\": 1.0, \"step\": \"INV-1-S09\", \"supports\": [\"ACC-2106\", \"TX-05530\", \"TX-05538\", \"TX-05552\", \"TX-05566\", \"TX-05583\", \"TX-05588\", \"TX-05613\", \"TX-05625\"]}, {\"id\": \"EV-4\", \"kind\": \"CIRCULAR_FLOW\", \"summary\": \"Circular flow of funds detected involving ACC-1913, ACC-1625, ACC-1845, and ACC-2106.\", \"confidence\": 1.0, \"step\": \"INV-1-S12\", \"supports\": [\"ACC-1625\", \"ACC-1845\", \"ACC-1880\", \"ACC-1913\", \"ACC-2106\", \"TX-05583\", \"TX-05602\", \"TX-05686\", \"TX-05738\", \"TX-FLAGSHIP\"]}, {\"id\": \"EV-5\", \"kind\": \"SHARED_DEVICE\", \"summary\": \"Sender ACC-1913 and account ACC-1370 share device DEV-0390.\", \"confidence\": 1.0, \"step\": \"INV-1-S19\", \"supports\": [\"ACC-1370\", \"ACC-1913\", \"DEV-0390\"]}], \"policy_matches\": [{\"pattern\": \"PAT-1\", \"policy\": \"POL-LAYERING\", \"rationale\": \"The circular flow of funds detected in EV-4 confirms that funds moved through a chain of accounts (ACC-1913, ACC-1625, ACC-1845, ACC-2106) and returned to an account within the same circular path or device cluster, indicating potential layering.\", \"confidence\": 1.0}, {\"pattern\": \"PAT-2\", \"policy\": \"POL-RAPID-FANOUT\", \"rationale\": \"The rapid fan-out pattern identified in EV-2 shows that account ACC-2106 distributed funds across 8 recipients immediately after receiving them from ACC-1913, which lacks a documented legitimate business purpose (as noted in the investigation summary).\", \"confidence\": 1.0}, {\"pattern\": \"PAT-3\", \"policy\": \"POL-STRUCTURING\", \"rationale\": \"The pattern identifies structuring in EV-3, where account ACC-2106 executed transfers just under the 1,000 threshold, which is a classic indicator of attempting to avoid transaction review thresholds.\", \"confidence\": 1.0}, {\"pattern\": \"PAT-4\", \"policy\": \"POL-SHARED-DEVICE\", \"rationale\": \"Evidence EV-1 shows account ACC-1913 and ACC-2106 share device DEV-0389, which constitutes undisclosed device sharing between unrelated accounts. This is a supporting indicator of suspicious activity.\", \"confidence\": 1.0}, {\"pattern\": \"PAT-5\", \"policy\": \"POL-SHARED-DEVICE\", \"rationale\": \"Evidence EV-1 and EV-5 demonstrate that sender ACC-1913 shares devices (DEV-0389 and DEV-0390) with multiple accounts (ACC-2106 and ACC-1370), suggesting undisclosed device sharing across unrelated customers.\", \"confidence\": 1.0}], \"steps\": [{\"id\": \"INV-1-S01\", \"seq\": 1, \"tool\": \"get_transaction\", \"reason\": \"I need to identify the sender and receiver of the alerted transaction TX-FLAGSHIP to start my investigation.\"}, {\"id\": \"INV-1-S02\", \"seq\": 2, \"tool\": \"get_account_profile\", \"reason\": \"I need to see the account profile for the sender to understand their activity patterns.\"}, {\"id\": \"INV-1-S03\", \"seq\": 3, \"tool\": \"get_account_profile\", \"reason\": \"I need to see the account profile for the receiver to understand their activity patterns.\"}, {\"id\": \"INV-1-S04\", \"seq\": 4, \"tool\": \"find_shared_devices\", \"reason\": \"I want to see if other customers use the same devices as the sender, which could indicate a shared device cluster.\"}, {\"id\": \"INV-1-S05\", \"seq\": 5, \"tool\": \"write_evidence\", \"reason\": \"The sender ACC-1913 and the receiver ACC-2106 share the same device DEV-0389, which is a potential indicator of collusive activity.\"}, {\"id\": \"INV-1-S06\", \"seq\": 6, \"tool\": \"analyze_fanout\", \"reason\": \"I want to see if the receiver account has a history of rapid redistribution of funds, which is a common layering indicator.\"}, {\"id\": \"INV-1-S07\", \"seq\": 7, \"tool\": \"list_policies\", \"reason\": \"I need to see if there are any thresholds that the transaction amounts might be structured against.\"}, {\"id\": \"INV-1-S08\", \"seq\": 8, \"tool\": \"write_evidence\", \"reason\": \"The account ACC-2106 shows a clear rapid fan-out pattern by distributing 8400 received from ACC-1913 to 8 recipients in a very short time.\"}, {\"id\": \"INV-1-S09\", \"seq\": 9, \"tool\": \"write_evidence\", \"reason\": \"The recipient amounts are tightly clustered just under the 1000 threshold (max 988.82), which indicates structuring to avoid review.\"}, {\"id\": \"INV-1-S10\", \"seq\": 10, \"tool\": \"find_cycles\", \"reason\": \"I want to see if the money eventually cycles back to the sender or the sender's device cluster to confirm layering.\"}, {\"id\": \"INV-1-S11\", \"seq\": 11, \"tool\": \"write_evidence\", \"reason\": \"The money flows through a 5-hop loop from ACC-1913 back to itself through the receiver ACC-2106 and other accounts, indicating layering.\"}, {\"id\": \"INV-1-S12\", \"seq\": 12, \"tool\": \"write_evidence\", \"reason\": \"The money flows through a 5-hop loop from ACC-1913 back to itself through the receiver ACC-2106 and other accounts, indicating layering. I am using the transaction/account ids from one of the cycles detected by find_cycles.\"}, {\"id\": \"INV-1-S13\", \"seq\": 13, \"tool\": \"write_pattern\", \"reason\": \"The combination of device sharing, rapid fan-out, structuring, and circular flow strongly indicates a money laundering layering scheme.\"}, {\"id\": \"INV-1-S14\", \"seq\": 14, \"tool\": \"write_pattern\", \"reason\": \"Circular flow of funds detected between ACC-1913 and ACC-2106.\"}, {\"id\": \"INV-1-S15\", \"seq\": 15, \"tool\": \"write_pattern\", \"reason\": \"Rapid fan-out detected on account ACC-2106.\"}, {\"id\": \"INV-1-S16\", \"seq\": 16, \"tool\": \"write_pattern\", \"reason\": \"Structuring of amounts detected on account ACC-2106.\"}, {\"id\": \"INV-1-S17\", \"seq\": 17, \"tool\": \"write_pattern\", \"reason\": \"Shared device cluster between ACC-1913 and ACC-2106.\"}, {\"id\": \"INV-1-S18\", \"seq\": 18, \"tool\": \"finish\", \"reason\": \"I have thoroughly investigated the alerted transaction and confirmed several indicators of money laundering including shared devices, rapid fan-out, structuring, and circular flow. I am now finishing the investigation.\"}, {\"id\": \"INV-1-S19\", \"seq\": 19, \"tool\": \"write_evidence\", \"reason\": \"Account ACC-1370 is also sharing device DEV-0390 with ACC-1913.\"}, {\"id\": \"INV-1-S20\", \"seq\": 20, \"tool\": \"write_pattern\", \"reason\": \"Multiple accounts sharing devices with the sender ACC-1913.\"}, {\"id\": \"INV-1-S21\", \"seq\": 21, \"tool\": \"finish\", \"reason\": \"I have now recorded all findings, including the additional shared device found in the self-review, and grouped them into patterns.\"}, {\"id\": \"INV-1-S22\", \"seq\": 22, \"tool\": \"analyze_fanout\", \"reason\": \"Checking fan-out for another account linked to the suspicious device cluster to see if it is also involved in layering.\"}, {\"id\": \"INV-1-S23\", \"seq\": 23, \"tool\": \"analyze_fanout\", \"reason\": \"Checking fan-out for account ACC-1370, which is part of the shared device cluster, to ensure there's no suspicious activity.\"}, {\"id\": \"INV-1-S24\", \"seq\": 24, \"tool\": \"finish\", \"reason\": \"I have analyzed the fan-out for the other device-linked accounts (ACC-1625 and ACC-1370) and found no evidence of suspicious activity. I have already recorded all suspicious findings (SHARED_DEVICE_CLUSTER, RAPID_FANOUT, STRUCTURING, CIRCULAR_FLOW) and grouped them into patterns. The investigation is complete.\"}, {\"id\": \"INV-1-S25\", \"seq\": 25, \"tool\": \"analyze_fanout\", \"reason\": \"Analyzing fan-out for the sender account ACC-1913 to be absolutely thorough, even though it was the primary account investigated.\"}, {\"id\": \"INV-1-S26\", \"seq\": 26, \"tool\": \"write_evidence\", \"reason\": \"The rapid fan-out behavior for ACC-1913 shows recurring bursts over time, which suggests legitimate recurring payments or payroll, rather than a suspicious one-off event.\"}, {\"id\": \"INV-1-S27\", \"seq\": 27, \"tool\": \"finish\", \"reason\": \"I have completed the investigation. While ACC-1913 shows frequent outbound bursts, they lack the high recipient overlap characteristic of payroll. The evidence of layering (shared devices, rapid fan-out, structuring, and circular flow) involving the alerted transaction TX-FLAGSHIP and ACC-2106 remains conclusive.\"}], \"citations\": [\"ACC-1370\", \"ACC-1625\", \"ACC-1845\", \"ACC-1880\", \"ACC-1913\", \"ACC-2106\", \"CASE-H1\", \"CASE-H3\", \"CASE-H4\", \"DEV-0389\", \"DEV-0390\", \"EV-1\", \"EV-2\", \"EV-3\", \"EV-4\", \"EV-5\", \"INV-1-S01\", \"INV-1-S02\", \"INV-1-S03\", \"INV-1-S04\", \"INV-1-S05\", \"INV-1-S06\", \"INV-1-S07\", \"INV-1-S08\", \"INV-1-S09\", \"INV-1-S10\", \"INV-1-S11\", \"INV-1-S12\", \"INV-1-S13\", \"INV-1-S14\", \"INV-1-S15\", \"INV-1-S16\", \"INV-1-S17\", \"INV-1-S18\", \"INV-1-S19\", \"INV-1-S20\", \"INV-1-S21\", \"INV-1-S22\", \"INV-1-S23\", \"INV-1-S24\", \"INV-1-S25\", \"INV-1-S26\", \"INV-1-S27\", \"PAT-1\", \"PAT-2\", \"PAT-3\", \"PAT-4\", \"PAT-5\", \"POL-LAYERING\", \"POL-RAPID-FANOUT\", \"POL-SHARED-DEVICE\", \"POL-STRUCTURING\", \"TX-05530\", \"TX-05538\", \"TX-05552\", \"TX-05566\", \"TX-05583\", \"TX-05588\", \"TX-05602\", \"TX-05613\", \"TX-05625\", \"TX-05686\", \"TX-05738\", \"TX-FLAGSHIP\"], \"human_decision_note\": \"**A human analyst makes the final decision.** This report is decision support generated from graph evidence; it does not constitute a determination of wrongdoing.\"}",
+    "recommendation": "ESCALATE",
+    "confidence": 1.0,
+    "created_ts": 1792233342953
+   }
+  }
+ ],
+ "edges": [
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S01"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S02"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S03"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S04"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S05"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S06"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S07"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S08"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S09"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S10"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S11"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S12"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S13"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S14"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S15"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S16"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S17"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S18"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S19"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S20"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S21"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S22"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S23"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S24"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S25"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S26"
+  },
+  {
+   "a_label": "Investigation",
+   "a": "INV-1",
+   "type": "HAS_STEP",
+   "props": {},
+   "b_label": "Step",
+   "b": "INV-1-S27"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S01",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-FLAGSHIP"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S02",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1913"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S03",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-2106"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S04",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1913"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S05",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1913"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S05",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-2106"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S05",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Device",
+   "b": "DEV-0389"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S05",
+   "type": "PRODUCED",
+   "props": {},
+   "b_label": "Evidence",
+   "b": "EV-1"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-1",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1913"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-1",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-2106"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-1",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Device",
+   "b": "DEV-0389"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S06",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-2106"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S08",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-2106"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S08",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05530"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S08",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05538"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S08",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05552"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S08",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05566"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S08",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05583"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S08",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05588"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S08",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05613"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S08",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05625"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S08",
+   "type": "PRODUCED",
+   "props": {},
+   "b_label": "Evidence",
+   "b": "EV-2"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-2",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-2106"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-2",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05530"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-2",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05538"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-2",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05552"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-2",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05566"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-2",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05583"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-2",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05588"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-2",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05613"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-2",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05625"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S09",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-2106"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S09",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05530"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S09",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05538"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S09",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05552"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S09",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05566"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S09",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05583"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S09",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05588"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S09",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05613"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S09",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05625"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S09",
+   "type": "PRODUCED",
+   "props": {},
+   "b_label": "Evidence",
+   "b": "EV-3"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-3",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-2106"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-3",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05530"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-3",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05538"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-3",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05552"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-3",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05566"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-3",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05583"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-3",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05588"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-3",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05613"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-3",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05625"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S10",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1913"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S11",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1625"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S11",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1845"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S11",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1913"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S11",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-2106"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S11",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-FLAGSHIP"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S12",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1625"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S12",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1845"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S12",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1880"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S12",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1913"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S12",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-2106"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S12",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05583"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S12",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05602"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S12",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05686"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S12",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05738"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S12",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-FLAGSHIP"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S12",
+   "type": "PRODUCED",
+   "props": {},
+   "b_label": "Evidence",
+   "b": "EV-4"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-4",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1625"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-4",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1845"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-4",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1880"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-4",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1913"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-4",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-2106"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-4",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05583"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-4",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05602"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-4",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05686"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-4",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-05738"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-4",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Transaction",
+   "b": "TX-FLAGSHIP"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S14",
+   "type": "PRODUCED",
+   "props": {},
+   "b_label": "Pattern",
+   "b": "PAT-1"
+  },
+  {
+   "a_label": "Pattern",
+   "a": "PAT-1",
+   "type": "VIOLATES",
+   "props": {
+    "rationale": "The circular flow of funds detected in EV-4 confirms that funds moved through a chain of accounts (ACC-1913, ACC-1625, ACC-1845, ACC-2106) and returned to an account within the same circular path or device cluster, indicating potential layering.",
+    "confidence": 1.0
+   },
+   "b_label": "Policy",
+   "b": "POL-LAYERING"
+  },
+  {
+   "a_label": "Pattern",
+   "a": "PAT-1",
+   "type": "BACKED_BY",
+   "props": {},
+   "b_label": "Evidence",
+   "b": "EV-4"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S15",
+   "type": "PRODUCED",
+   "props": {},
+   "b_label": "Pattern",
+   "b": "PAT-2"
+  },
+  {
+   "a_label": "Pattern",
+   "a": "PAT-2",
+   "type": "VIOLATES",
+   "props": {
+    "rationale": "The rapid fan-out pattern identified in EV-2 shows that account ACC-2106 distributed funds across 8 recipients immediately after receiving them from ACC-1913, which lacks a documented legitimate business purpose (as noted in the investigation summary).",
+    "confidence": 1.0
+   },
+   "b_label": "Policy",
+   "b": "POL-RAPID-FANOUT"
+  },
+  {
+   "a_label": "Pattern",
+   "a": "PAT-2",
+   "type": "BACKED_BY",
+   "props": {},
+   "b_label": "Evidence",
+   "b": "EV-2"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S16",
+   "type": "PRODUCED",
+   "props": {},
+   "b_label": "Pattern",
+   "b": "PAT-3"
+  },
+  {
+   "a_label": "Pattern",
+   "a": "PAT-3",
+   "type": "VIOLATES",
+   "props": {
+    "rationale": "The pattern identifies structuring in EV-3, where account ACC-2106 executed transfers just under the 1,000 threshold, which is a classic indicator of attempting to avoid transaction review thresholds.",
+    "confidence": 1.0
+   },
+   "b_label": "Policy",
+   "b": "POL-STRUCTURING"
+  },
+  {
+   "a_label": "Pattern",
+   "a": "PAT-3",
+   "type": "BACKED_BY",
+   "props": {},
+   "b_label": "Evidence",
+   "b": "EV-3"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S17",
+   "type": "PRODUCED",
+   "props": {},
+   "b_label": "Pattern",
+   "b": "PAT-4"
+  },
+  {
+   "a_label": "Pattern",
+   "a": "PAT-4",
+   "type": "VIOLATES",
+   "props": {
+    "rationale": "Evidence EV-1 shows account ACC-1913 and ACC-2106 share device DEV-0389, which constitutes undisclosed device sharing between unrelated accounts. This is a supporting indicator of suspicious activity.",
+    "confidence": 1.0
+   },
+   "b_label": "Policy",
+   "b": "POL-SHARED-DEVICE"
+  },
+  {
+   "a_label": "Pattern",
+   "a": "PAT-4",
+   "type": "BACKED_BY",
+   "props": {},
+   "b_label": "Evidence",
+   "b": "EV-1"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S19",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1370"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S19",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1913"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S19",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Device",
+   "b": "DEV-0390"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S19",
+   "type": "PRODUCED",
+   "props": {},
+   "b_label": "Evidence",
+   "b": "EV-5"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-5",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1370"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-5",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1913"
+  },
+  {
+   "a_label": "Evidence",
+   "a": "EV-5",
+   "type": "SUPPORTED_BY",
+   "props": {},
+   "b_label": "Device",
+   "b": "DEV-0390"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S20",
+   "type": "PRODUCED",
+   "props": {},
+   "b_label": "Pattern",
+   "b": "PAT-5"
+  },
+  {
+   "a_label": "Pattern",
+   "a": "PAT-5",
+   "type": "VIOLATES",
+   "props": {
+    "rationale": "Evidence EV-1 and EV-5 demonstrate that sender ACC-1913 shares devices (DEV-0389 and DEV-0390) with multiple accounts (ACC-2106 and ACC-1370), suggesting undisclosed device sharing across unrelated customers.",
+    "confidence": 1.0
+   },
+   "b_label": "Policy",
+   "b": "POL-SHARED-DEVICE"
+  },
+  {
+   "a_label": "Pattern",
+   "a": "PAT-5",
+   "type": "BACKED_BY",
+   "props": {},
+   "b_label": "Evidence",
+   "b": "EV-1"
+  },
+  {
+   "a_label": "Pattern",
+   "a": "PAT-5",
+   "type": "BACKED_BY",
+   "props": {},
+   "b_label": "Evidence",
+   "b": "EV-5"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S22",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1625"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S23",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1370"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S25",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1913"
+  },
+  {
+   "a_label": "Step",
+   "a": "INV-1-S26",
+   "type": "EXAMINED",
+   "props": {},
+   "b_label": "Account",
+   "b": "ACC-1913"
+  },
+  {
+   "a_label": "Report",
+   "a": "RPT-1",
+   "type": "CITES",
+   "props": {},
+   "b_label": "Policy",
+   "b": "POL-STRUCTURING"
+  },
+  {
+   "a_label": "Report",
+   "a": "RPT-1",
+   "type": "CITES",
+   "props": {},
+   "b_label": "Policy",
+   "b": "POL-SHARED-DEVICE"
+  },
+  {
+   "a_label": "Report",
+   "a": "RPT-1",
+   "type": "CITES",
+   "props": {},
+   "b_label": "Policy",
+   "b": "POL-LAYERING"
+  },
+  {
+   "a_label": "Report",
+   "a": "RPT-1",
+   "type": "CITES",
+   "props": {},
+   "b_label": "Policy",
+   "b": "POL-RAPID-FANOUT"
+  },
+  {
+   "a_label": "Report",
+   "a": "RPT-1",
+   "type": "ABOUT",
+   "props": {},
+   "b_label": "Investigation",
+   "b": "INV-1"
+  },
+  {
+   "a_label": "Report",
+   "a": "RPT-1",
+   "type": "CITES",
+   "props": {},
+   "b_label": "Evidence",
+   "b": "EV-1"
+  },
+  {
+   "a_label": "Report",
+   "a": "RPT-1",
+   "type": "CITES",
+   "props": {},
+   "b_label": "Evidence",
+   "b": "EV-2"
+  },
+  {
+   "a_label": "Report",
+   "a": "RPT-1",
+   "type": "CITES",
+   "props": {},
+   "b_label": "Evidence",
+   "b": "EV-3"
+  },
+  {
+   "a_label": "Report",
+   "a": "RPT-1",
+   "type": "CITES",
+   "props": {},
+   "b_label": "Evidence",
+   "b": "EV-4"
+  },
+  {
+   "a_label": "Report",
+   "a": "RPT-1",
+   "type": "CITES",
+   "props": {},
+   "b_label": "Pattern",
+   "b": "PAT-1"
+  },
+  {
+   "a_label": "Report",
+   "a": "RPT-1",
+   "type": "CITES",
+   "props": {},
+   "b_label": "Pattern",
+   "b": "PAT-2"
+  },
+  {
+   "a_label": "Report",
+   "a": "RPT-1",
+   "type": "CITES",
+   "props": {},
+   "b_label": "Pattern",
+   "b": "PAT-3"
+  },
+  {
+   "a_label": "Report",
+   "a": "RPT-1",
+   "type": "CITES",
+   "props": {},
+   "b_label": "Pattern",
+   "b": "PAT-4"
+  },
+  {
+   "a_label": "Report",
+   "a": "RPT-1",
+   "type": "CITES",
+   "props": {},
+   "b_label": "Evidence",
+   "b": "EV-5"
+  },
+  {
+   "a_label": "Report",
+   "a": "RPT-1",
+   "type": "CITES",
+   "props": {},
+   "b_label": "Pattern",
+   "b": "PAT-5"
+  }
+ ]
+}

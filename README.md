@@ -20,7 +20,7 @@ flowchart LR
     REP[(Report · VIOLATES · CITES)]
     MEM[(vedatrace_memory<br/>vedatrace_graphiti)]
   end
-  LLM{{"agents/llm.py<br/>anthropic or ollama"}}
+  LLM{{"agents/llm.py<br/>openai-compatible (free tiers), anthropic or ollama"}}
   INV[Investigator<br/>process 1]
   REPO[Reporter<br/>process 2]
   UI[FastAPI + web UI]
@@ -54,7 +54,7 @@ Why a graph for coordination: the Reporter can run hours later, on another machi
 | No shared state between agents | Reporter has no import of the Investigator/tools (AST test); API/`run_demo.py` start them as separate processes |
 | Provenance on every claim | `SUPPORTED_BY` / `BACKED_BY` / `PRODUCED` edges; enforced in `write_evidence`; `tests/test_tools.py`, `tests/e2e_checks.py` |
 | Deterministic, one-command reset | `python -m seed.reset --size demo` |
-| Swappable LLM, one interface | only `agents/llm.py` imports provider SDKs (AST test); `VEDATRACE_LLM_PROVIDER=anthropic\|ollama` |
+| Swappable LLM, one interface | only `agents/llm.py` imports provider SDKs (AST test); `VEDATRACE_LLM_PROVIDER=openai\|anthropic\|ollama` (`openai` = any OpenAI-compatible endpoint, e.g. free Gemini) |
 | Parameterised Cypher | `tests/test_no_cheating.py::test_cypher_is_parameterized` |
 | Key name / secrets | key only via `VEDATRACE_API_KEY` in git-ignored `.env`; never logged |
 
@@ -64,8 +64,10 @@ docker build -t vedatrace . && docker run -p 7860:7860 vedatrace      # then ope
 ```
 This starts FalkorDB **and** the app in one container, seeds the deterministic demo graph (raw facts only) and loads a **recorded real run**: the Investigator's step-by-step trail, its Evidence/Pattern nodes with provenance, and the Reporter's report. The UI replays it from the graph. It is read-only (no LLM calls, no resets), so it is safe to host publicly. The recording is clearly flagged `recorded=true`; the live agents run locally (below).
 
+**About the bundled recording:** one real, unedited run of the Investigator and then the Reporter (separate process), made on the free Gemini `gemini-3.1-flash-lite` model (via the OpenAI-compatible provider, so the UI shows `openai/gemini-3.1-flash-lite`) with memory on (Graphiti + case store). It discovered all three ring structures (shared device `DEV-0389`, rapid fan-out + structuring, circular flow), mapped them to `POL-SHARED-DEVICE`, `POL-RAPID-FANOUT`, `POL-STRUCTURING` and `POL-LAYERING`, recalled three prior cases and the Reporter cited them (`[CASE-H1]`, `[CASE-H3]`, `[CASE-H4]`); recommendation ESCALATE. **It also made one mistake:** it reported the flagship sender's legitimate home device (`DEV-0390`, shared with a family member) as a second shared-device pattern (`PAT-5`) instead of explaining it as benign. Re-record any time with `python -m seed.recording export INV-n --out demo_runs/flagship.json` (from `vedatrace/`).
+
 ## Setup (live agents)
-Requirements: Python 3.11+, Docker, and an LLM: an Anthropic key, an OpenAI-compatible key (including free tiers), **or** [Ollama](https://ollama.com).
+Requirements: Python 3.11+, Docker, and an LLM. **Free options:** a Google Gemini key (aistudio.google.com/apikey, no card) or local [Ollama](https://ollama.com). Paid/other: any OpenAI-compatible key, or an Anthropic key.
 
 ```bash
 git clone … && cd vedatrace-kit
@@ -73,7 +75,9 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 docker run -d --name vedatrace-falkordb -p 6379:6379 -p 3000:3000 falkordb/falkordb:latest   # 3000 = FalkorDB Browser
 
 cp .env.example .env        # then edit:
-#   Anthropic:  VEDATRACE_API_KEY=<your key>   VEDATRACE_LLM_PROVIDER=anthropic     (model claude-sonnet-5-5)
+#   Free (Gemini): VEDATRACE_LLM_PROVIDER=openai OPENAI_API_KEY=<free key> OPENAI_MODEL=gemini-3.1-flash-lite
+#                  OPENAI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+#   Anthropic:     VEDATRACE_API_KEY=<your key>   VEDATRACE_LLM_PROVIDER=anthropic     (model claude-sonnet-5-5)
 #   Local:      VEDATRACE_LLM_PROVIDER=ollama  OLLAMA_MODEL=qwen2.5:14b             (any tool-calling model)
 #   OpenAI-compatible (OpenAI, Gemini, OpenRouter, ...):
 #               VEDATRACE_LLM_PROVIDER=openai OPENAI_API_KEY=<key> OPENAI_MODEL=<model> [OPENAI_BASE_URL=<endpoint>]
@@ -112,11 +116,11 @@ RUN_E2E=1 E2E_RUNS=3 ../.venv/bin/python -m pytest -q -s tests/test_e2e.py   # r
 Notes on running Graphiti against the current FalkorDB image: graphiti-core 0.30.2 uses a fulltext-index procedure signature that FalkorDB's graph module 6.x rejects — `memory/graphiti_mem.py` patches that at runtime; and Graphiti uses `group_id` as the FalkorDB graph name, so it is pinned to `vedatrace_graphiti`.
 
 ## Honest limitations
-* **Results depend on the model.** The Investigator is a free tool loop, so discovery quality tracks model strength. Measured on the demo seed: OpenAI `gpt-5.6-luna` found all three structures (shared device, fan-out/structuring, circular flow) in 6/6 runs with no red-herring violations (`PROGRESS.md`); the free Gemini `gemini-3.1-flash-lite` completed 3/3 runs but found **0/3 complete** discoveries (fan-out 3/3, circular flow 2/3, shared device 0/3 because it treated the planted household device as legitimate, plus one red-herring violation). Provenance and report citations held in every run on every model. The earlier local `qwen2.5:14b` runs were slower and mixed.
-* **The Anthropic provider is implemented but has never been run against the live API** (no key was available). `claude-sonnet-5-5` is the configured default.
+* **Results depend on the model, and a single run is a sample.** Measured on the demo seed: OpenAI `gpt-5.6-luna` found all three ring structures in 6/6 runs (`PROGRESS.md`). The free Gemini `gemini-3.1-flash-lite` is weaker and varies run to run: in about a dozen memory-off runs its shared-device check never passed, while in the two completed memory-on runs it found the shared-device ring both times and all three structures in one of them (the bundled recording). Two runs are too few to say memory is the cause. Provenance and report citations held in every run on every model. The earlier local `qwen2.5:14b` runs were slower and mixed. Our automated red-herring check covers the payroll and marketplace decoys; it did not cover the household device next to the ring until we added `household_near_ring_flagged` to `tests/e2e_checks.py`, so earlier "0 red-herring violations" figures did not include that decoy.
+* **The Anthropic provider is implemented but has never been run against the live API** (no key was available). `claude-sonnet-5-5` is the code's default only when `VEDATRACE_LLM_PROVIDER` is unset; `.env.example` ships the free Gemini setup instead.
 * **The Investigator never records `BENIGN_EXPLANATION` for the decoys**; they are simply not flagged. A nudge that tried to make it do so caused false positives and was reverted.
-* Free API tiers are tight for a 40+ call agent loop: Groq's free models cap at ~7-8k tokens/min (the run dies mid-investigation), and Gemini Flash models allow 20 requests/day. That is why the public demo is a recorded run.
-* Graphiti extraction is slow and noisy with small models; recall leans on the case store. Graphiti was not exercised with a free provider.
+* Free API tiers are tight for a 40+ call agent loop: Groq's free models cap at ~7-8k tokens/min (the run dies mid-investigation), Gemini Flash models allow 20 requests/day, and `gemini-3.1-flash-lite` allows 500 requests/day (about 10 runs). That is why the public demo is a recorded run.
+* Graphiti works on the free Gemini model (4 history episodes ingested, 14 entities extracted, backend `graphiti+cases`), but extraction is noisy and recall leans on the case store. The deployed replay has no live memory service: memory is shown through the recorded run (recalled `PriorCase` nodes and the cited cases).
 * The recommendation (`ESCALATE | MONITOR | CLEAR`) is decision support; **a human analyst makes the final decision**.
 * Policy `regulatory_ref` values are generic placeholders, not real statutes.
 
