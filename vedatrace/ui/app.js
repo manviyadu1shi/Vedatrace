@@ -172,9 +172,9 @@ function openStream(inv) {
   });
   es.addEventListener('done', async (e) => {
     const d = JSON.parse(e.data); es.close(); es = null; running = false;
-    $('run').disabled = false;
+    $('run').disabled = readonly;
     setStatus(d.status === 'finished' ? `Finished. ${d.summary || ''}` : d.status === 'failed' ? `Investigation failed: ${d.summary || ''}` : `Stopped (${d.status}). ${d.summary || ''}`, d.status === 'finished' ? 'ok' : 'err');
-    $('make-report').disabled = d.status === 'failed';
+    $('make-report').disabled = d.status === 'failed' || readonly;
     await refreshGraph();
     health();
   });
