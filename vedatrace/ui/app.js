@@ -221,7 +221,7 @@ function addStep(s) {
   const args = Object.entries(s.args || {}).map(([k, v]) => `${k}=${Array.isArray(v) ? `[${v.length}]` : String(v).slice(0, 28)}`).join(', ');
   li.append(head, el('div', 'call', `${s.tool}(${args})`), el('div', 'why', s.reason || ''), el('div', 'res', s.summary || ''));
   li.onclick = () => { const a = Object.values(s.args || {}).flat().find((v) => typeof v === 'string' && /^(ACC|TX|DEV)-/.test(v)); if (a) focusNode(a); };
-  $('steps').append(li); $('steps').scrollTop = 1e9;
+  $('steps-empty').classList.add('hidden'); $('steps').append(li); $('pane-steps').scrollTop = 1e9;
 }
 function addFinding(kind, f) {
   const d = el('div', 'finding ' + (kind === 'pattern' ? 'pattern' : f.kind === 'BENIGN_EXPLANATION' ? 'benign' : ''));
@@ -248,7 +248,7 @@ function openStream(inv) {
     markFinished(d.status);
     $('replay').disabled = false;
     await refreshGraph();
-    await loadPast();
+    await loadPast(); loadAlerts();
     await showSummary(currentInv, null);
     health();
   });
@@ -257,7 +257,7 @@ function openStream(inv) {
 function resetView() {
   stopPlayer();
   if (es) { es.close(); es = null; }
-  $('steps').innerHTML = ''; $('findings').innerHTML = ''; stepCount = 0; $('step-count').textContent = '0 steps';
+  $('steps').innerHTML = ''; $('steps-empty').classList.remove('hidden'); $('findings').innerHTML = ''; stepCount = 0; $('step-count').textContent = '0 steps';
   if (cy) cy.elements().remove(); noteText = ''; $('graph-note').textContent = ''; $('inspector').classList.add('hidden'); fullGraph = null;
   $('report').className = 'report muted'; $('report').textContent = 'The Reporter runs as a separate process. It reads only the graph, never the Investigator\'s memory.';
   ['dl-md', 'dl-json'].forEach((i) => $('' + i).classList.add('hidden'));
@@ -316,7 +316,7 @@ function markFinished(status) {
 async function playRun(inv, instant) {
   resetView(); currentInv = inv; banner('');
   currentTx = (pastMeta[inv] || {}).tx_id || currentTx;
-  $('case-title').textContent = `Investigation ${inv}` + (currentTx ? ` · ${currentTx}` : '');
+  $('case-title').textContent = currentTx ? `${currentTx} · ${inv}` : inv;
   $('to-report').href = `#/report/${inv}`; updateNav();
   setStatus(`Loading ${inv} from the graph…`);
   let tr, g;
@@ -390,7 +390,7 @@ function renderReport(rep) {
   const box = $('report'); box.className = 'report'; box.innerHTML = html;
   box.querySelectorAll('a[href^="#cite-"]').forEach((a) => {
     const id = a.getAttribute('href').slice(6); a.className = 'cite'; a.textContent = id; a.removeAttribute('href');
-    a.onclick = (ev) => { ev.preventDefault(); location.hash = `#/case/${currentInv}`; setTimeout(() => focusNode(id), 250); };
+    a.onclick = (ev) => { ev.preventDefault(); focusNode(id); };
   });
   const rec = el('span', 'rec ' + rep.recommendation, rep.recommendation); box.prepend(rec);
   $('dl-md').href = `/api/reports/${rep.id}/download?format=md`; $('dl-json').href = `/api/reports/${rep.id}/download?format=json`;
@@ -405,8 +405,8 @@ async function loadPast() {
   } catch (e) { /* ignore */ }
 }
 
-/* ---------- page 1: alerts ---------- */
-const fmtDate = (ts) => { try { return new Date(ts > 1e11 ? ts : ts * 1000).toISOString().replace('T', ' ').slice(0, 16) + ' UTC'; } catch (e) { return ''; } };
+/* ---------- left rail: alerts ---------- */
+const fmtDate = (ts) => { try { return new Date(ts > 1e11 ? ts : ts * 1000).toISOString().slice(0, 10); } catch (e) { return ''; } };
 
 async function loadAlerts() {
   const box = $('alerts');
@@ -415,55 +415,56 @@ async function loadAlerts() {
   box.innerHTML = '';
   if (!list.length) { box.append(el('div', 'muted', 'No alerted transactions. The graph may be empty' + (readonly ? '.' : ': use "Reset data" in the footer to seed it.'))); return; }
   list.forEach((a) => {
-    const inv = a.investigation, card = el('div', 'alert' + (a.tx_id === 'TX-FLAGSHIP' ? ' featured' : ''));
+    const inv = a.investigation, canRun = !locked();
+    const card = el('div', 'alert' + (a.tx_id === 'TX-FLAGSHIP' ? ' featured' : '') + (a.tx_id === currentTx && currentInv ? ' active' : '') + (!inv && !canRun ? ' locked' : ''));
     const top = el('div', 'top'); top.append(el('span', 'id', a.tx_id));
-    if (a.tx_id === 'TX-FLAGSHIP') top.append(el('span', 'tag-s feat', 'Featured case'));
-    const amt = el('div', 'amt', Number(a.amount).toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' '); amt.append(el('small', '', a.currency || 'USD'));
-    const meta = el('div', 'meta');
-    const line = (k, v) => { const d = el('div'); d.append(k + ' ', el('b', '', v)); meta.append(d); };
-    line('From', a.src); line('To', a.dst); line('Channel', a.channel || 'n/a'); line('Alert score', String(a.score)); line('When', fmtDate(a.ts));
+    const amt = el('span', 'amt', Number(a.amount).toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' '); amt.append(el('small', '', a.currency || 'USD')); top.append(amt);
+    const meta = el('div', 'meta'); meta.append(el('span', '', `score ${a.score}`), el('span', '', a.channel || ''), el('span', '', fmtDate(a.ts)));
     const foot = el('div', 'foot');
-    const status = !inv ? el('span', 'tag-s', 'Not investigated')
-      : inv.status === 'finished' ? el('span', 'tag-s done', inv.recorded ? 'Recorded run' : inv.has_report ? 'Investigated · report ready' : 'Investigated')
+    const tag = !inv ? (canRun ? el('span', 'tag-s', 'Not investigated') : el('span', 'tag-s', 'Needs a live run'))
+      : inv.status === 'finished' ? el('span', 'tag-s done', inv.recorded ? 'Recorded run' : inv.has_report ? 'Report ready' : 'Investigated')
       : el('span', 'tag-s run', inv.status === 'running' ? 'Running…' : inv.status);
-    const act = el('div', 'actions');
-    if (inv) { const open = el('a', 'btn primary', inv.recorded ? '▶ Watch recorded investigation' : 'Open investigation'); open.href = `#/case/${inv.id}`; act.append(open); }
-    if (!locked()) {
-      const b = el('button', (inv ? 'ghost' : 'primary') + ' run-btn', inv ? 'Run again' : 'Investigate');
-      b.onclick = () => run(a.tx_id, b); act.append(b);
-    }
-    foot.append(status, act);
-    card.append(top, amt, meta, foot);
-    if (!inv && locked()) card.append(el('div', 'muted', 'Needs a live run (off in the public demo).'));
+    if (a.tx_id === 'TX-FLAGSHIP') { const w = el('span'); w.style.display = 'flex'; w.style.gap = '6px'; w.append(el('span', 'tag-s feat', 'Featured'), tag); foot.append(w); } else foot.append(tag);
+    if (inv) { const b = el('button', 'primary', inv.recorded ? '▶ Watch' : 'Open'); b.onclick = (e) => { e.stopPropagation(); location.hash = `#/case/${inv.id}`; }; foot.append(b); }
+    else if (canRun) { const b = el('button', 'primary run-btn', 'Investigate'); b.onclick = (e) => { e.stopPropagation(); run(a.tx_id, b); }; foot.append(b); }
+    card.onclick = () => { if (inv) location.hash = `#/case/${inv.id}`; else if (!canRun) banner('This alert has no recording. Live runs are off in the public demo.', true); };
+    card.append(top, meta, foot);
     box.append(card);
   });
   applyLock();
 }
 
-/* ---------- router: #/alerts, #/case/INV-n, #/report/INV-n ---------- */
+/* ---------- one page, three states (the hash keeps links and the back button working) ---------- */
+let currentView = 'alerts';
 function updateNav() {
   const v = currentView, has = !!currentInv;
-  const set = (id, active, done, off, href) => { const a = $(id); a.className = 'st' + (active ? ' active' : '') + (done ? ' done' : '') + (off ? ' off' : ''); if (href) a.href = href; };
-  set('st-alerts', v === 'alerts', has && v !== 'alerts', false);
-  set('st-case', v === 'case', has && v === 'report', !has, has ? `#/case/${currentInv}` : '#/alerts');
-  set('st-report', v === 'report', false, !(has && runFinished), has ? `#/report/${currentInv}` : '#/alerts');
+  const set = (id, active, done) => { $(id).className = 'st' + (active ? ' active' : '') + (done ? ' done' : ''); };
+  set('st-alerts', v === 'alerts', has && v !== 'alerts');
+  set('st-case', v === 'case', has && v === 'report');
+  set('st-report', v === 'report', false);
+  document.querySelectorAll('.alert').forEach((c) => c.classList.toggle('active', has && c.querySelector('.id').textContent === currentTx));
 }
-let currentView = 'alerts';
+function setTab(t) {
+  $('tab-steps').classList.toggle('active', t === 'steps'); $('tab-report').classList.toggle('active', t === 'report');
+  $('pane-steps').classList.toggle('hidden', t !== 'steps'); $('pane-report').classList.toggle('hidden', t !== 'report');
+}
 function showView(v) {
   currentView = v;
-  ['alerts', 'case', 'report'].forEach((n) => $('view-' + n).classList.toggle('hidden', n !== v));
+  $('empty').classList.toggle('hidden', v !== 'alerts');
+  if (v === 'case') setTab('steps'); else if (v === 'report') setTab('report');
   updateNav();
-  if (v === 'case' && cy) { cy.resize(); if (cy.nodes().length) cy.fit(undefined, 30); }
+  if (cy) { cy.resize(); if (cy.nodes().length) cy.fit(undefined, 30); }
 }
 async function route() {
   const [, view, id] = (location.hash || '#/alerts').split('/');
   if (view === 'case' && id) {
     showView('case');
     if (currentInv !== id) await playRun(id);
+    loadAlerts();
   } else if (view === 'report' && id) {
     showView('report');
     if (currentInv !== id) await playRun(id, true);
-    $('report-title').textContent = `Report · ${currentTx || id}`;
+    loadAlerts();
     if (!currentReport && runFinished) {
       $('report').className = 'report muted';
       $('report').textContent = locked() ? 'No report was recorded for this investigation.' : 'No report yet. Press "Generate report": the Reporter, a separate process, will read the evidence from the graph and write it.';
@@ -483,6 +484,8 @@ async function resetData() {
 
 window.addEventListener('DOMContentLoaded', async () => {
   initGraph();
+  $('tab-steps').onclick = () => { if (currentInv) location.hash = `#/case/${currentInv}`; else setTab('steps'); };
+  $('tab-report').onclick = () => { if (currentInv) location.hash = `#/report/${currentInv}`; else setTab('report'); };
   $('make-report').onclick = makeReport; $('reset').onclick = resetData;
   $('replay').onclick = () => { if (currentInv) playRun(currentInv); };
   $('unlock').onclick = async () => { await toggleAdmin(); if (currentView === 'alerts') loadAlerts(); };

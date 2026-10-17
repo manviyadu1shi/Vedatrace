@@ -1,0 +1,67 @@
+/* Single-page workbench layout. Loaded after style.css, which keeps the shared component styles. */
+body{overflow:hidden}
+.app{flex:1;min-height:0;display:grid;grid-template-columns:330px minmax(0,1fr) 430px;gap:14px;padding:14px 20px}
+.app>.panel{min-height:0;overflow:hidden}
+.rail h2{margin-bottom:4px}.hint{margin:0 0 10px;color:var(--muted);font-size:12.5px}
+
+.alerts{display:flex;flex-direction:column;gap:8px;overflow:auto;padding-right:3px;flex:1}
+.alert{border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:6px;transition:border-color .15s,background .15s}
+.alert:hover{border-color:var(--line2);background:var(--panel3)}
+.alert.active{border-color:var(--accent);background:#12233a}
+.alert.featured:not(.active){border-color:#28496f}
+.alert.locked{cursor:default;opacity:.7}
+.alert .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.alert .id{font:600 13px ui-monospace,Menlo,Consolas,monospace}
+.alert .amt{font-weight:700;font-size:15px}.alert .amt small{font-size:11px;color:var(--muted);font-weight:500}
+.alert .meta{display:flex;gap:10px;color:var(--muted);font-size:12px;flex-wrap:wrap}
+.alert .foot{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.alert .foot button{padding:4px 10px;font-size:12.5px}
+.tag-s{font-size:11px;border-radius:999px;padding:1px 8px;border:1px solid var(--line2);color:var(--muted);white-space:nowrap}
+.tag-s.done{color:#7ee787;border-color:#25602f;background:#0f2417}
+.tag-s.run{color:#f2cc60;border-color:#6d5818}
+.tag-s.feat{color:#a9d1ff;border-color:#1f4a75;background:#0f2133}
+
+.stage{padding-bottom:10px}
+.stage-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+.stage-title{min-width:0;flex:1}.stage-title h1{margin:0;font-size:18px}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn.primary{background:linear-gradient(180deg,#2b7bf2,#1f64d6);border-color:#2f6fdc;color:#fff;font-weight:600}
+.btn.disabled{opacity:.4;pointer-events:none}
+.status{display:block;-webkit-line-clamp:unset;overflow:visible;white-space:pre-wrap;word-break:break-word;margin-top:2px}
+#summary{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px}
+.graph-wrap{position:relative;flex:1;min-height:0;display:flex}
+#cy{flex:1;min-height:0}
+.empty{position:absolute;inset:0;display:grid;place-items:center;background:rgba(10,15,21,.94);border-radius:10px;padding:20px}
+.empty-in{max-width:430px;text-align:center}.empty-in h3{margin:12px 0 10px;font-size:20px}
+.empty-in ol{text-align:left;margin:0 0 12px;padding-left:20px}.empty-in li{margin:6px 0}
+.legend{align-items:center}.graph-note{margin-left:auto}
+.inspector{top:10px;right:10px}
+
+.side{padding:0}
+.tabs{display:flex;border-bottom:1px solid var(--line);padding:0 8px;flex:none}
+.tab{background:none;border:none;border-bottom:2px solid transparent;border-radius:0;padding:12px 14px;color:var(--muted);font-weight:600;display:flex;gap:8px;align-items:center}
+.tab:hover:not(:disabled){color:var(--text)}
+.tab.active{color:var(--text);border-bottom-color:var(--accent)}
+.pane{flex:1;min-height:0;overflow:auto;padding:12px 14px;display:flex;flex-direction:column}
+.pane .steps{overflow:visible;flex:none}
+
+.linkbtn{background:none;border:none;color:var(--muted);text-decoration:underline;padding:0 0 0 10px;cursor:pointer}
+.linkbtn:hover:not(:disabled){color:var(--text)}
+.banner{white-space:pre-wrap;word-break:break-word}
+.stepper{display:flex;align-items:center;gap:8px}
+.st{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:13px;padding:4px 10px;border-radius:999px;border:1px solid transparent}
+.st .n{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;background:var(--panel3);border:1px solid var(--line2)}
+.st.active{color:var(--text);border-color:#28496f;background:#12233a}
+.st.active .n{background:#1f64d6;border-color:#2f6fdc;color:#fff}
+.st.done .n{background:#143a1d;border-color:#25602f;color:#7ee787}
+.sep-l{width:22px;height:1px;background:var(--line2)}
+
+@media (max-width:1250px){
+  body{overflow:auto}
+  .app{grid-template-columns:1fr}
+  .app>.panel{overflow:visible}
+  .stage{min-height:520px}
+  .pane{overflow:visible}
+  .alerts{max-height:340px}
+  .stepper{display:none}
+}
