@@ -4,6 +4,8 @@
 
 Built for **Graph Hacks (WeMakeDevs × FalkorDB)** — tracks: *01 Agents That Act on Connected Data* (primary), *02 Agent Memory and Coordination*.
 
+**Live demo:** https://vedatrace.onrender.com (read-only replay of a recorded run; the free server sleeps when idle, so the first load can take about a minute).
+
 | Agent | What it does | Reads | Writes |
 |---|---|---|---|
 | **Investigator** | Tool-using LLM loop. Explores the graph, decides its own next step, records what the data supports. | Customer, Account, Device, Transaction, Policy | `Investigation`, `Step` (audit trail), `Evidence`, `Pattern` — each with provenance edges to the exact Transaction/Account/Device nodes |
@@ -62,7 +64,7 @@ Why a graph for coordination: the Reporter can run hours later, on another machi
 ```bash
 docker build -t vedatrace . && docker run -p 7860:7860 vedatrace      # then open http://localhost:7860
 ```
-This starts FalkorDB **and** the app in one container, seeds the deterministic demo graph (raw facts only) and loads a **recorded real run**: the Investigator's step-by-step trail, its Evidence/Pattern nodes with provenance, and the Reporter's report. The UI replays it from the graph. It is read-only (no LLM calls, no resets), so it is safe to host publicly. The recording is clearly flagged `recorded=true`; the live agents run locally (below).
+This starts FalkorDB **and** the app in one container, seeds the deterministic demo graph (raw facts only) and loads a **recorded real run**: the Investigator's step-by-step trail, its Evidence/Pattern nodes with provenance, and the Reporter's report. The UI is a single page: the left rail lists the transactions the monitoring system flagged, the centre shows the evidence graph growing as the recorded investigation is replayed, and the right side has an *Investigation* tab (every step, with the Investigator's reason) and a *Report* tab (the cited report, with links back to the graph nodes). Alerts without a recording need a live run. The UI replays it from the graph. It is read-only (no LLM calls, no resets), so it is safe to host publicly. The recording is clearly flagged `recorded=true`; the live agents run locally (below). On the public site only the owner can start live runs, through an admin token (see `DEPLOY.md`).
 
 **About the bundled recording:** one real, unedited run of the Investigator and then the Reporter (separate process), made on the free Gemini `gemini-3.1-flash-lite` model (via the OpenAI-compatible provider, so the UI shows `openai/gemini-3.1-flash-lite`) with memory on (Graphiti + case store). It discovered all three ring structures (shared device `DEV-0389`, rapid fan-out + structuring, circular flow), mapped them to `POL-SHARED-DEVICE`, `POL-RAPID-FANOUT`, `POL-STRUCTURING` and `POL-LAYERING`, recalled three prior cases and the Reporter cited them (`[CASE-H1]`, `[CASE-H3]`, `[CASE-H4]`); recommendation ESCALATE. **It also made one mistake:** it reported the flagship sender's legitimate home device (`DEV-0390`, shared with a family member) as a second shared-device pattern (`PAT-5`) instead of explaining it as benign. Re-record any time with `python -m seed.recording export INV-n --out demo_runs/flagship.json` (from `vedatrace/`).
 
@@ -130,7 +132,7 @@ vedatrace/
   seed/    build_graph.py reset.py recording.py ground_truth.json (tests only)
   agents/  llm.py tools.py investigator.py reporter.py
   memory/  graphiti_mem.py
-  api/     app.py            ui/  index.html app.js style.css
+  api/     app.py            ui/  index.html app.js style.css layout.css
   tests/   test_seed.py test_tools.py test_no_cheating.py test_e2e.py e2e_checks.py
   run_demo.py
 ```

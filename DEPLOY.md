@@ -9,8 +9,8 @@ Check locally first:
 docker build -t vedatrace . && docker run -p 7860:7860 vedatrace      # http://localhost:7860
 ```
 
-## Option A: Render (free web service, Docker) — recommended
-Hugging Face now marks Docker Spaces as paid, so use Render. The whole container uses about 66 MB of RAM (measured), well inside a free instance.
+## Option A: Render (free web service, Docker)
+The whole container uses about 66 MB of RAM (measured), well inside a free instance.
 1. Sign up at render.com (GitHub login works). No card is needed to create a free web service.
 2. **New + > Web Service**. If your GitHub repo is public, use the **Public Git Repository** tab and paste the repo URL (no GitHub permissions needed); otherwise connect GitHub.
 3. Settings: **Language: Docker**, branch `main`, Dockerfile path `./Dockerfile`, root directory empty, **Instance Type: Free**, Health Check Path `/api/health`. No environment variables are needed (`VEDATRACE_READONLY=1` is set in the Dockerfile).
@@ -37,19 +37,10 @@ The deployment is read-only for everyone by default (`VEDATRACE_READONLY=1`). To
    - `OPENAI_EMBED_MODEL` = `gemini-embedding-001`
    - `VEDATRACE_MEMORY` = `simple` (the slim image has no Graphiti; the case store gives the recall)
    Keep the `FALKORDB_*` variables. Do not set `VEDATRACE_READONLY=0`: everyone else must stay locked out.
-2. Redeploy. Open the site: a **🔒 Admin** button appears in the header. Click it, enter the token, and **Run investigation** and **Generate report** unlock for this browser tab (Reset stays locked, so the recording is safe).
-3. A run takes a few minutes and uses about 30-60 Gemini requests (500 per day on the free tier). Keep the tab open while it runs. The new run appears in the dropdown next to the recording; visitors land on the newest *finished* run.
+2. Redeploy. Open the site: a **🔒 Admin** button appears in the header. Click it, enter the token, and **Investigate** buttons on the alert cards and **Generate report** unlock for this browser tab (Reset stays locked, so the recording is safe).
+3. A run takes a few minutes and uses about 30-60 Gemini requests (500 per day on the free tier). Keep the tab open while it runs. The new run shows up on its alert card in the list (the card changes from "Not investigated" to a finished run) and can be opened from there.
 4. The cloud memory graph needs the history cases once: from your laptop, with the `FALKORDB_*` lines in `.env` pointing at the cloud, run `python -m memory.graphiti_mem seed-history` with `VEDATRACE_MEMORY=simple` and `OPENAI_EMBED_MODEL=gemini-embedding-001` set.
 Click the button again to lock. The token is checked on the server for every write; without it, run/report/reset all return 403.
-
-## Option B: Hugging Face Spaces
-Docker Spaces need a paid plan on HF now, so this only works with PRO. If you have it: create a Docker Space, then
-```bash
-git remote add space https://huggingface.co/spaces/<user>/<space>
-git checkout -b hf-space && cp deploy/hf_space_README.md README.md && git add README.md && git commit -m "space readme"
-git push space hf-space:main --force && git checkout main
-```
-A free **Static** Space cannot run this app (no database, no Python).
 
 ## Notes
 * Memory use is small: the demo graph is ~11k nodes and persistence is off (the graph is rebuilt on every start from the seed plus the recording).
