@@ -126,3 +126,28 @@ Note: Reporter runs overwrite the tracked `vedatrace/reports/RPT-1.*`; the commi
 - Read-only mode caches GET responses (the recorded run never changes) and pre-warms the cache at startup, because a remote FalkorDB costs ~1 s per query: trace/graph/report went from 5-7 s to ~0.2 s. Writes still 403, report download keeps its attachment header.
 - FalkorDB Cloud: free instance (AWS ap-south-1) populated with the seed + recording (11,253 nodes, ~10 MB of 100 MB). App verified against it in read-only mode with headless Edge: 27 steps / 45 nodes / 88 edges / 80 citations, 0 console errors. Tests must be run with FALKORDB_HOST=localhost FALKORDB_PORT=6380 FALKORDB_USERNAME= FALKORDB_PASSWORD= while `.env` points at the cloud, or they would touch the cloud graph.
 - Not yet done: Render deploy (owner), video, submission text.
+
+## Session 3, 2026-10-18 (deadline: Sun 2026-10-18 23:59 IST)
+### Done
+- Deployed: https://vedatrace.onrender.com (Render free, Docker, read-only replay) against a FalkorDB Cloud free instance (it stops after 1 idle day, is deleted after 7). Repo: https://github.com/manviyadu1shi/Vedatrace (the owner commits and pushes herself).
+- Admin unlock for live runs on the public site: header "Admin" button + env `VEDATRACE_ADMIN_TOKEN` (value only in Render). Live runs there need `VEDATRACE_LLM_PROVIDER=openai`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_EMBED_MODEL`, `VEDATRACE_MEMORY=simple`. Reset stays locked. A live run from Render failed ("Investigation failed to start") while the Gemini free quota was exhausted; not re-tested after the reset.
+- New endpoint `GET /api/alerts`: the transactions the seed marked `alerted` (TX-FLAGSHIP + 8 decoys, raw seed facts only), each with its latest investigation.
+- UI rebuilt as ONE page workbench (ids kept): left rail = alert list (click to open, "Watch" for the recording, "Investigate" when live runs are allowed), centre = evidence graph with summary chips and Replay / Skip / View report, right = tabs Investigation | Report. Header progress: Pick an alert > Investigate > Report. Hash routes `#/alerts`, `#/case/INV-n`, `#/report/INV-n`. Files: `vedatrace/ui/index.html`, `app.js`, `style.css` (shared components), `layout.css` (new, workbench layout). Assets are loaded with `?v=3` to defeat stale browser caches (an old cached style.css made the first deploy of the redesign look unstyled; bump the number on UI changes).
+- Errors are shown in full (wrapped), not clipped. Free-text transaction box removed (it only accepted ids that exist).
+- Tested locally against the cloud graph in read-only mode with headless Edge: alerts list, Watch, Skip, Report tab, 0 console errors. NOT tested: live runs from an alert card, or the redeployed site.
+- Removed the helper scripts (`scripts/*`) and `docs/medium-post.md` on the owner's request; the blog lives in a private Claude artifact (https://claude.ai/artifact/NsTpDmqaGNFfEqZEWzcqme). It embeds `docs/realdemo.png` (an OLD-UI screenshot, not committed on purpose). The owner will replace it with a screenshot of the new UI; "Copy for Medium" links `https://raw.githubusercontent.com/manviyadu1shi/Vedatrace/main/docs/realdemo.png`, so push a file with that name first.
+
+### RESUME HERE
+1. Commit + push the UI files (`git add vedatrace/ui/index.html vedatrace/ui/app.js vedatrace/ui/style.css vedatrace/ui/layout.css`; confirm `.env` is not staged), then Render > Manual Deploy, then a hard refresh.
+2. Check the deployed site: alerts load, Watch plays the recording, Report tab shows the cited report.
+3. After the Gemini quota resets (~05:30 IST), optionally try a cleaner live recording (`demo_runs/flagship.json` has one disclosed false positive: DEV-0390).
+4. Take a screenshot of the new UI, replace `docs/realdemo.png`, push; tell Claude to swap the image in the blog artifact.
+5. Record the demo video (DEMO_SCRIPT.md section A) from the deployed site, finish the Medium post, write the submission text, submit before 23:59 IST.
+
+### Environment quirks
+- A local `redis-server` owns 6379, so the local FalkorDB container `vedatrace-falkordb` uses 6380 (`docker start vedatrace-falkordb`; Docker Desktop must be running).
+- `.env` points at the CLOUD graph: `python -m seed.reset` would DELETE it. For local tests override `FALKORDB_HOST=localhost FALKORDB_PORT=6380 FALKORDB_USERNAME= FALKORDB_PASSWORD=`. Set `PYTHONUTF8=1`. venv: `.venv/Scripts/python`.
+- Local read-only preview against the cloud graph (reads only): `VEDATRACE_READONLY=1 python -m uvicorn api.app:app --app-dir vedatrace --port 8123`.
+
+### Not done / known gaps
+Anthropic provider never run (no key); failure-mode checks and a full `/demo-verify` not done; Graphiti verified on free Gemini only locally (the slim deploy image has no Graphiti; memory there is the case store).
