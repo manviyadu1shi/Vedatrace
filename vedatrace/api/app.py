@@ -26,6 +26,12 @@ app = FastAPI(title="VedaTrace")
 
 JOBS: dict = {}  # investigation id -> {"proc", "log", "done", "rc"}
 JOB_LOCK = threading.Lock()
+READONLY = os.environ.get("VEDATRACE_READONLY") == "1"  # public replay deployment: no LLM calls, no resets
+
+
+def deny_if_readonly():
+    if READONLY:
+        raise HTTPException(403, "This is a read-only replay deployment: it shows a recorded investigation. Run the project locally with an LLM key to investigate live.")
 
 
 def g():
@@ -68,7 +74,7 @@ def memory_status():
 
 @app.get("/api/health")
 def health():
-    out = dict(graph=GRAPH_NAME, llm=llm_status(), memory=memory_status())
+    out = dict(graph=GRAPH_NAME, llm=llm_status(), memory=memory_status(), readonly=READONLY)
     try:
         n = q("MATCH (n) RETURN count(n)")[0][0]
         out["falkordb"] = dict(ok=True, nodes=n)
@@ -95,6 +101,7 @@ def _reader(inv_holder, proc, log):
 
 @app.post("/api/investigations")
 def start_investigation(req: StartReq):
+    deny_if_readonly()
     if not re.fullmatch(r"TX-[A-Za-z0-9]+", req.tx_id):
         raise HTTPException(400, "Transaction ids look like TX-00123 or TX-FLAGSHIP")
     try:
@@ -128,10 +135,10 @@ def list_investigations():
         from agents.investigator import sweep_stale
         sweep_stale(get_graph())
         rows = q("MATCH (i:Investigation) OPTIONAL MATCH (r:Report)-[:ABOUT]->(i) "
-                 "RETURN i.id, i.target_tx, i.status, i.provider, i.model, i.steps, collect(r.id) ORDER BY toInteger(substring(i.id,4)) DESC LIMIT 30")
+                 "RETURN i.id, i.target_tx, i.status, i.provider, i.model, i.steps, collect(r.id), i.recorded ORDER BY toInteger(substring(i.id,4)) DESC LIMIT 30")
     except Exception as e:
         return db_error_response(e)
-    return [dict(id=r[0], tx_id=r[1], status=r[2], provider=r[3], model=r[4], steps=r[5], reports=r[6]) for r in rows]
+    return [dict(id=r[0], tx_id=r[1], status=r[2], provider=r[3], model=r[4], steps=r[5], reports=r[6], recorded=bool(r[7])) for r in rows]
 
 
 def snapshot(inv, since_seq, since_ev, since_pat):
@@ -287,6 +294,7 @@ def node_detail(node_id: str):
 @app.post("/api/investigations/{inv}/report")
 def make_report(inv: str):
     """Runs the Reporter as a separate process; only the investigation id is passed."""
+    deny_if_readonly()
     p = subprocess.run([sys.executable, "-u", "-m", "agents.reporter", "--investigation", inv], cwd=ROOT, capture_output=True, text=True)
     m = re.search(r"REPORT_ID=(RPT-\d+)", p.stdout or "")
     if p.returncode or not m:
@@ -318,6 +326,7 @@ class ResetReq(BaseModel):
 
 @app.post("/api/reset")
 def reset(req: ResetReq):
+    deny_if_readonly()
     if req.size not in ("dev", "demo"):
         raise HTTPException(400, "size must be dev or demo")
     with JOB_LOCK:

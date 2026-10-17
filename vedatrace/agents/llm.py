@@ -20,6 +20,7 @@ class ToolCall:
     id: str
     name: str
     arguments: dict
+    extra: dict | None = None  # provider passthrough that must be echoed back (Gemini 3 thought_signature)
 
 
 @dataclass
@@ -139,9 +140,10 @@ def _chat_ollama(messages, tools, system, max_tokens):
 def _chat_openai(messages, tools, system, max_tokens):
     import time
 
-    from openai import OpenAI, RateLimitError
+    from openai import APIConnectionError, BadRequestError, InternalServerError, OpenAI, RateLimitError
 
-    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"], max_retries=0, timeout=120)
+    # OPENAI_BASE_URL points this provider at any OpenAI-compatible endpoint (Groq, Gemini, OpenRouter, ...)
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"], base_url=os.environ.get("OPENAI_BASE_URL") or None, max_retries=0, timeout=120)
     out = [{"role": "system", "content": system}] if system else []
     for m in messages:
         if m["role"] == "tool":
@@ -149,23 +151,27 @@ def _chat_openai(messages, tools, system, max_tokens):
         elif m["role"] == "assistant":
             d = {"role": "assistant", "content": m.get("content") or ""}
             if m.get("tool_calls"):
-                d["tool_calls"] = [{"id": tc.id, "type": "function", "function": {"name": tc.name, "arguments": json.dumps(tc.arguments)}}
-                                   for tc in m["tool_calls"]]
+                d["tool_calls"] = [{"id": tc.id, "type": "function", "function": {"name": tc.name, "arguments": json.dumps(tc.arguments)},
+                                    **({"extra_content": tc.extra} if tc.extra else {})} for tc in m["tool_calls"]]
             out.append(d)
         else:
             out.append({"role": "user", "content": m["content"]})
-    kwargs = dict(model=model_name(), messages=out, max_completion_tokens=max_tokens,
-                  reasoning_effort=os.environ.get("OPENAI_REASONING_EFFORT", "none"))  # "none" = cheap and allows function tools
+    kwargs = dict(model=model_name(), messages=out, max_completion_tokens=max_tokens)
+    if not os.environ.get("OPENAI_BASE_URL"):  # reasoning_effort is OpenAI-only; compatible endpoints may reject it
+        kwargs["reasoning_effort"] = os.environ.get("OPENAI_REASONING_EFFORT", "none")  # "none" = cheap and allows function tools
     if tools:
         kwargs["tools"] = [{"type": "function", "function": t} for t in tools]
     for attempt in range(6):
         try:
             r = client.chat.completions.create(**kwargs)
             break
-        except RateLimitError:
+        except (RateLimitError, InternalServerError, APIConnectionError):  # 429, transient 5xx ("high demand" 503 on free tiers), network blips
             if attempt == 5:
                 raise
             time.sleep(min(60, 5 * 2 ** attempt))
+        except BadRequestError as e:  # strict servers (Groq) reject a hallucinated/malformed tool call with 400; a resample usually fixes it
+            if "tool_use_failed" not in str(e) or attempt >= 3:
+                raise
     msg = r.choices[0].message
     calls = []
     for tc in msg.tool_calls or []:
@@ -173,14 +179,15 @@ def _chat_openai(messages, tools, system, max_tokens):
             args = json.loads(tc.function.arguments or "{}")
         except Exception:
             args = {"_malformed": tc.function.arguments}
-        calls.append(ToolCall(tc.id, tc.function.name, args if isinstance(args, dict) else {"_malformed": str(args)}))
+        extra = (getattr(tc, "model_extra", None) or {}).get("extra_content")
+        calls.append(ToolCall(tc.id, tc.function.name, args if isinstance(args, dict) else {"_malformed": str(args)}, extra))
     return LLMResponse(msg.content or "", calls)
 
 
 # ---- embeddings (used only by the memory layer) -----------------------------------------
 def embed(texts: list) -> list:
     """Local embeddings via Ollama (nomic-embed-text). Anthropic has no embedding endpoint, so memory uses Ollama for this in both modes."""
-    if provider() == "openai":
+    if provider() == "openai" and not os.environ.get("OPENAI_BASE_URL"):  # custom endpoints rarely offer OpenAI embeddings: use Ollama
         from openai import OpenAI
 
         r = OpenAI(api_key=os.environ["OPENAI_API_KEY"], timeout=60).embeddings.create(model="text-embedding-3-small", input=list(texts))

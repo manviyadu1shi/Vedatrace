@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+.venv/
+.git/
+**/__pycache__/
+*.log
+node_modules/
+vedatrace/reports/
+vedatrace/tests/

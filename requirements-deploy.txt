@@ -1,0 +1,8 @@
+# Slim runtime for the read-only replay deployment (no tests, no Graphiti, no browser automation)
+python-dotenv
+falkordb
+fastapi
+uvicorn[standard]
+openai
+anthropic
+httpx

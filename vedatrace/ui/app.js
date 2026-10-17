@@ -5,7 +5,7 @@ const SHAPES = { Account: 'ellipse', Transaction: 'diamond', Device: 'round-rect
 const SIZES = { Account: 30, Transaction: 14, Device: 24, Customer: 20, Evidence: 28, Pattern: 38, Policy: 30 };
 const WRITERS = new Set(['write_evidence', 'write_pattern']);
 
-let cy, es = null, currentInv = null, currentReport = null, graphTimer = null, running = false, stepCount = 0;
+let cy, es = null, currentInv = null, currentReport = null, graphTimer = null, running = false, stepCount = 0, readonly = false;
 
 /* ---------- helpers ---------- */
 async function api(path, opts) {
@@ -42,11 +42,14 @@ async function health() {
     mem.textContent = h.memory.enabled ? `memory on · ${h.memory.backend}` : 'memory off';
     mem.className = 'badge ' + (h.memory.enabled ? 'ok' : 'off');
     mem.title = h.memory.detail || '';
+    readonly = !!h.readonly;
+    if (readonly) { ['run', 'reset', 'make-report'].forEach((i) => { $(i).disabled = true; $(i).title = 'Read-only replay deployment'; }); }
     const problems = [];
     if (!h.falkordb.ok) problems.push('FalkorDB is not reachable. Start it with: docker start vedatrace-falkordb  (or docker run -p 6379:6379 -p 3000:3000 falkordb/falkordb)');
     else if (h.falkordb.nodes === 0) problems.push('The graph is empty. Press "Reset demo data" to seed it.');
-    if (!h.llm.ok) problems.push('LLM provider problem: ' + (h.llm.detail || 'not ready'));
-    banner(problems.join('\n'), !problems.some((p) => p.startsWith('FalkorDB') || p.startsWith('LLM')));
+    if (readonly) problems.push('Read-only replay of a recorded investigation. Every node, step and citation below is read from FalkorDB; run locally with an LLM key to investigate live.');
+    else if (!h.llm.ok) problems.push('Live runs are disabled (' + (h.llm.detail || 'LLM not ready') + '). Recorded runs can still be replayed from the "Previous investigations" list.');
+    banner(problems.join('\n'), !problems.some((p) => p.startsWith('FalkorDB')));
     return h;
   } catch (e) { banner(e.message); }
 }
@@ -237,14 +240,14 @@ async function loadPast() {
   try {
     const list = await api('/api/investigations');
     const sel = $('past'); sel.length = 1;
-    list.forEach((i) => { const o = el('option', '', `${i.id} · ${i.tx_id} · ${i.status}${i.reports.length ? ' · report' : ''}`); o.value = i.id; o.dataset.report = i.reports[0] || ''; sel.append(o); });
+    list.forEach((i) => { const o = el('option', '', `${i.id} · ${i.tx_id} · ${i.status}${i.reports.length ? ' · report' : ''}${i.recorded ? ' · recorded run' : ''}`); o.value = i.id; o.dataset.report = i.reports[0] || ''; sel.append(o); });
   } catch (e) { /* ignore */ }
 }
 
 async function openPast() {
   const sel = $('past'); const id = sel.value; if (!id) return;
   const rpt = sel.selectedOptions[0].dataset.report;
-  resetView(); currentInv = id; $('make-report').disabled = false;
+  resetView(); currentInv = id; $('make-report').disabled = readonly;
   setStatus(`Replaying ${id} from the graph…`);
   openStream(id); await refreshGraph();
   if (rpt) { try { const rep = await api('/api/reports/' + rpt); currentReport = rep; renderReport(rep); } catch (e) { /* none */ } }
@@ -262,6 +265,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   initGraph();
   $('run').onclick = run; $('make-report').onclick = makeReport; $('reset').onclick = resetData; $('past').onchange = openPast;
   $('tx').addEventListener('keydown', (e) => { if (e.key === 'Enter') run(); });
-  await health(); loadPast();
+  await health(); await loadPast();
+  if (readonly && $('past').options.length > 1) { $('past').selectedIndex = 1; openPast(); }  // land on the recorded run
   setInterval(health, 20000);
 });

@@ -90,3 +90,18 @@ Fixed and verified:
 5. Also: `MAX_STEPS` 36 -> 48 (runs were exhausting the budget), and the CIRCULAR_FLOW rejection message now says which ids to cite.
 Re-measured after the fixes: **6/6** full discoveries, 0 red-herring violations, 6 distinct step sequences, ~90 s per run (e2e, gpt-5.6-luna).
 **NOT fixed: the Investigator still never records BENIGN_EXPLANATION for the decoys.** I tried a generic self-review nudge ("check accounts on money loops before concluding"); it made the model investigate the payroll decoy and record it as fraud in 3 of 6 runs (red-herring violations), so I reverted it. Decoys are still not flagged, just not explained.
+
+## Free-tier session, 2026-10-17 (no paid key; Windows; FalkorDB on port 6380)
+Environment notes
+- A local `redis-server` already owns port 6379 on this machine, so FalkorDB runs as `docker run -d --name vedatrace-falkordb -p 6380:6379 -p 3000:3000 falkordb/falkordb:latest` and every command needs `FALKORDB_PORT=6380`. Also set `PYTHONUTF8=1` on Windows (model output contains non-cp1252 characters).
+- Venv is `.venv` (Windows: `.venv/Scripts/python`).
+Code changes (uncommitted unless the owner committed them)
+- `agents/llm.py`: `OPENAI_BASE_URL` (any OpenAI-compatible endpoint), `reasoning_effort` only sent to real OpenAI, Ollama embeddings on custom endpoints, retry on `tool_use_failed` 400s, retry on 5xx/connection errors, Gemini 3 `thought_signature` passthrough (`ToolCall.extra`).
+- `seed/recording.py`: `export INV-n --out file.json` / `load file.json` for a RECORDED real run (kept separate from `seed.reset`, which still seeds raw facts only). Round trip verified: 32 nodes / 123 edges identical, a second load is refused, replay works with no LLM key. Loaded Investigation/Report are flagged `recorded=true`; the UI lists them as "recorded run".
+Free providers tried (OpenAI-compatible endpoints)
+- Groq `openai/gpt-oss-120b` (8k TPM) and `qwen/qwen3.8-27b` (7k input TPM): runs die mid-investigation with 413 once the context grows (steps 12-17). Not usable.
+- Gemini `gemini-flash-latest` and `gemini-3-flash-preview`: free tier is 20 requests/day per model. Not usable (an investigation needs 40+).
+- Gemini `gemini-3.1-flash-lite`: completes (26 steps, ~2-5 min, Reporter ~40 s).
+Measured, honest numbers (Flash-Lite, demo seed, E2E_RUNS=3): **0/3 full discoveries.** Fan-out found 3/3; circular flow 2/3; shared-device cluster 0/3 (treated as a household); 1 red-herring violation in run 1. Provenance 3/3, report citations resolve 3/3, no crashes. Earlier OpenAI `gpt-5.6-luna`: 6/6 (see sections above). Quality depends on model strength.
+NOT done: Anthropic provider test (no Anthropic key), Graphiti with a free provider (VEDATRACE_MEMORY=off was used), failure-mode checks, /demo-verify end to end, a good recorded run for the demo (`demo_runs/` not created yet).
+Note: Reporter runs overwrite the tracked `vedatrace/reports/RPT-1.*`; the committed versions are the OpenAI run's.

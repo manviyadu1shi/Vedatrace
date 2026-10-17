@@ -58,8 +58,14 @@ Why a graph for coordination: the Reporter can run hours later, on another machi
 | Parameterised Cypher | `tests/test_no_cheating.py::test_cypher_is_parameterized` |
 | Key name / secrets | key only via `VEDATRACE_API_KEY` in git-ignored `.env`; never logged |
 
-## Setup
-Requirements: Python 3.11+, Docker, and either an Anthropic key **or** [Ollama](https://ollama.com).
+## Try it in one command (no API key, no setup)
+```bash
+docker build -t vedatrace . && docker run -p 7860:7860 vedatrace      # then open http://localhost:7860
+```
+This starts FalkorDB **and** the app in one container, seeds the deterministic demo graph (raw facts only) and loads a **recorded real run**: the Investigator's step-by-step trail, its Evidence/Pattern nodes with provenance, and the Reporter's report. The UI replays it from the graph. It is read-only (no LLM calls, no resets), so it is safe to host publicly. The recording is clearly flagged `recorded=true`; the live agents run locally (below).
+
+## Setup (live agents)
+Requirements: Python 3.11+, Docker, and an LLM: an Anthropic key, an OpenAI-compatible key (including free tiers), **or** [Ollama](https://ollama.com).
 
 ```bash
 git clone … && cd vedatrace-kit
@@ -69,6 +75,9 @@ docker run -d --name vedatrace-falkordb -p 6379:6379 -p 3000:3000 falkordb/falko
 cp .env.example .env        # then edit:
 #   Anthropic:  VEDATRACE_API_KEY=<your key>   VEDATRACE_LLM_PROVIDER=anthropic     (model claude-sonnet-5-5)
 #   Local:      VEDATRACE_LLM_PROVIDER=ollama  OLLAMA_MODEL=qwen2.5:14b             (any tool-calling model)
+#   OpenAI-compatible (OpenAI, Gemini, OpenRouter, ...):
+#               VEDATRACE_LLM_PROVIDER=openai OPENAI_API_KEY=<key> OPENAI_MODEL=<model> [OPENAI_BASE_URL=<endpoint>]
+#   If something else already uses port 6379 (e.g. a local Redis): map FalkorDB to another port and set FALKORDB_PORT.
 ollama pull qwen2.5:14b && ollama pull nomic-embed-text     # local mode / memory embeddings
 
 cd vedatrace
@@ -103,15 +112,18 @@ RUN_E2E=1 E2E_RUNS=3 ../.venv/bin/python -m pytest -q -s tests/test_e2e.py   # r
 Notes on running Graphiti against the current FalkorDB image: graphiti-core 0.30.2 uses a fulltext-index procedure signature that FalkorDB's graph module 6.x rejects — `memory/graphiti_mem.py` patches that at runtime; and Graphiti uses `group_id` as the FalkorDB graph name, so it is pinned to `vedatrace_graphiti`.
 
 ## Honest limitations
-* Developed overnight without an Anthropic key, so **all measured results are with local `qwen2.5:14b`** on a 16 GB laptop (6–18 min per investigation). The Anthropic path is implemented but untested against the live API.
-* A 14B local model still sometimes mis-attributes evidence or groups it imperfectly; the graph-side validators prevent *false provenance* but not every *judgement* error. The 3-run repeatability measurement did not complete (host memory exhaustion); see `PROGRESS.md` > Verification results for exactly what was and was not verified.
+* **Results depend on the model.** The Investigator is a free tool loop, so discovery quality tracks model strength. Measured on the demo seed: OpenAI `gpt-5.6-luna` found all three structures (shared device, fan-out/structuring, circular flow) in 6/6 runs with no red-herring violations (`PROGRESS.md`); the free Gemini `gemini-3.1-flash-lite` completed 3/3 runs but found **0/3 complete** discoveries (fan-out 3/3, circular flow 2/3, shared device 0/3 because it treated the planted household device as legitimate, plus one red-herring violation). Provenance and report citations held in every run on every model. The earlier local `qwen2.5:14b` runs were slower and mixed.
+* **The Anthropic provider is implemented but has never been run against the live API** (no key was available). `claude-sonnet-5-5` is the configured default.
+* **The Investigator never records `BENIGN_EXPLANATION` for the decoys**; they are simply not flagged. A nudge that tried to make it do so caused false positives and was reverted.
+* Free API tiers are tight for a 40+ call agent loop: Groq's free models cap at ~7-8k tokens/min (the run dies mid-investigation), and Gemini Flash models allow 20 requests/day. That is why the public demo is a recorded run.
+* Graphiti extraction is slow and noisy with small models; recall leans on the case store. Graphiti was not exercised with a free provider.
 * The recommendation (`ESCALATE | MONITOR | CLEAR`) is decision support; **a human analyst makes the final decision**.
 * Policy `regulatory_ref` values are generic placeholders, not real statutes.
 
 ## Layout
 ```
 vedatrace/
-  seed/    build_graph.py reset.py ground_truth.json (tests only)
+  seed/    build_graph.py reset.py recording.py ground_truth.json (tests only)
   agents/  llm.py tools.py investigator.py reporter.py
   memory/  graphiti_mem.py
   api/     app.py            ui/  index.html app.js style.css
