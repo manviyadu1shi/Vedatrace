@@ -169,8 +169,13 @@ def _chat_openai(messages, tools, system, max_tokens):
             if attempt == 5:
                 raise
             time.sleep(min(60, 5 * 2 ** attempt))
-        except BadRequestError as e:  # strict servers (Groq) reject a hallucinated/malformed tool call with 400; a resample usually fixes it
-            if "tool_use_failed" not in str(e) or attempt >= 3:
+        except BadRequestError as e:
+            msg = str(e)
+            if "max_completion_tokens" in msg and "max_completion_tokens" in kwargs:  # some OpenAI-compatible servers (Mistral) only know max_tokens
+                kwargs["max_tokens"] = kwargs.pop("max_completion_tokens")
+            elif "tool_use_failed" in msg and attempt < 3:  # strict servers (Groq) reject a hallucinated/malformed tool call with 400; a resample usually fixes it
+                pass
+            else:
                 raise
     msg = r.choices[0].message
     calls = []
