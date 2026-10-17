@@ -4,8 +4,25 @@ const COLORS = { Account: '#4aa3ff', Transaction: '#7d8590', Device: '#e3a008', 
 const SHAPES = { Account: 'ellipse', Transaction: 'diamond', Device: 'round-rectangle', Customer: 'ellipse', Evidence: 'hexagon', Pattern: 'star', Policy: 'octagon' };
 const SIZES = { Account: 30, Transaction: 14, Device: 24, Customer: 20, Evidence: 28, Pattern: 38, Policy: 30 };
 const WRITERS = new Set(['write_evidence', 'write_pattern']);
+/* human-readable names and a colour family for each tool the Investigator can call */
+const TOOLS = {
+  get_transaction: { label: 'Read transaction', kind: 'read' },
+  get_account_profile: { label: 'Profile account', kind: 'read' },
+  get_neighbors: { label: 'Inspect neighbours', kind: 'read' },
+  find_shared_devices: { label: 'Find shared devices', kind: 'analyze' },
+  analyze_fanout: { label: 'Analyze fan-out', kind: 'analyze' },
+  trace_flow: { label: 'Trace money flow', kind: 'analyze' },
+  find_cycles: { label: 'Search circular flows', kind: 'analyze' },
+  shortest_path: { label: 'Find shortest path', kind: 'analyze' },
+  list_policies: { label: 'Read policies', kind: 'policy' },
+  write_evidence: { label: 'Record evidence', kind: 'write' },
+  write_pattern: { label: 'Record pattern', kind: 'write' },
+  finish: { label: 'Finish', kind: 'finish' },
+};
+const PACE = { step: 520, write: 1100 }; /* ms between steps during a replay */
 
 let cy, es = null, currentInv = null, currentReport = null, graphTimer = null, running = false, stepCount = 0, readonly = false;
+let player = null, fullGraph = null, pastMeta = {}, noteText = '';
 
 /* ---------- helpers ---------- */
 async function api(path, opts) {
@@ -45,10 +62,10 @@ async function health() {
     mem.title = h.memory.detail || '';
     if (h.readonly && !h.memory.enabled) { mem.textContent = 'memory · shown in recording'; mem.title = 'Recalled cases are stored in the recorded run (Graphiti + case store); no live memory service here'; }
     readonly = !!h.readonly;
-    if (readonly) { ['run', 'reset', 'make-report'].forEach((i) => { $(i).disabled = true; $(i).title = 'Read-only replay deployment'; }); }
+    if (readonly) { ['run', 'reset', 'make-report', 'tx'].forEach((i) => { $(i).disabled = true; $(i).title = 'Read-only replay deployment'; }); }
     const problems = [];
     if (!h.falkordb.ok) problems.push('FalkorDB is not reachable. Start it with: docker start vedatrace-falkordb  (or docker run -p 6379:6379 -p 3000:3000 falkordb/falkordb)');
-    else if (h.falkordb.nodes === 0) problems.push('The graph is empty. Press "Reset demo data" to seed it.');
+    else if (h.falkordb.nodes === 0) problems.push('The graph is empty. Press "Reset data" to seed it.');
     if (readonly) problems.push('Read-only replay of a recorded investigation. Every node, step and citation below is read from FalkorDB; run locally with an LLM key to investigate live.');
     else if (!h.llm.ok) problems.push('Live runs are disabled (' + (h.llm.detail || 'LLM not ready') + '). Recorded runs can still be replayed from the "Previous investigations" list.');
     banner(problems.join('\n'), !problems.some((p) => p.startsWith('FalkorDB')));
@@ -78,37 +95,63 @@ function initGraph() {
   });
   cy.on('tap', 'node', (ev) => inspect(ev.target.id()));
   cy.on('tap', (ev) => { if (ev.target === cy) $('inspector').classList.add('hidden'); });
+  cy.on('mouseover', 'node', (ev) => { $('graph-note').textContent = `${ev.target.id()} · ${ev.target.data('type')}`; });
+  cy.on('mouseout', 'node', () => { $('graph-note').textContent = noteText; });
   const lg = $('legend');
   Object.entries(COLORS).forEach(([k, c]) => { const s = el('span'); const i = el('i'); i.style.background = c; s.append(i, k); lg.append(s); });
 }
 
 function shortLabel(n) { return n.id.replace(/^(ACC|TX|DEV|CUST)-/, '$1·'); }
 
-async function refreshGraph(focusLatest) {
-  if (!currentInv) return;
-  let g;
-  try { g = await api(`/api/investigations/${currentInv}/graph`); } catch (e) { banner(e.message); return; }
-  const have = new Set(cy.nodes().map((n) => n.id()));
-  const add = [];
+/* Which nodes of the full graph are visible after step `upto` of a replay (Infinity = everything).
+   Every node carries the number of the first step that touched or produced it; 999 = context, 998 = policies. */
+function visibleSet(g, upto) {
+  const live = upto === Infinity, vis = new Set(), byId = new Map(g.nodes.map((n) => [n.id, n]));
+  g.nodes.forEach((n) => { if (live || (n.step <= upto && n.step < 998)) vis.add(n.id); });
+  if (!live) {
+    g.edges.forEach((e) => {
+      const a = byId.get(e.source), b = byId.get(e.target);
+      if (!a || !b) return;
+      if (a.step === 999 && vis.has(b.id) && b.step < 998) vis.add(a.id);
+      if (b.step === 999 && vis.has(a.id) && a.step < 998) vis.add(b.id);
+    });
+  }
+  return vis;
+}
+
+function applyGraph(g, upto) {
+  const vis = visibleSet(g, upto), have = new Set(cy.nodes().map((n) => n.id())), add = [];
   g.nodes.forEach((n) => {
-    if (!have.has(n.id)) add.push({ group: 'nodes', data: { ...n, short: shortLabel(n), props: undefined }, classes: 'fresh' });
-    else { const c = cy.getElementById(n.id); c.data('touched', n.touched); }
+    if (!vis.has(n.id)) return;
+    const touched = !!n.touched && (upto === Infinity || n.step <= upto);
+    if (!have.has(n.id)) add.push({ group: 'nodes', data: { ...n, touched, short: shortLabel(n), props: undefined }, classes: 'fresh' });
+    else cy.getElementById(n.id).data('touched', touched);
   });
   const haveE = new Set(cy.edges().map((e) => `${e.data('source')}|${e.data('target')}|${e.data('type')}`));
-  g.edges.forEach((e) => { if (!haveE.has(`${e.source}|${e.target}|${e.type}`)) add.push({ group: 'edges', data: { ...e, id: `e:${e.source}|${e.target}|${e.type}` } }); });
+  g.edges.forEach((e) => {
+    if (vis.has(e.source) && vis.has(e.target) && !haveE.has(`${e.source}|${e.target}|${e.type}`)) add.push({ group: 'edges', data: { ...e, id: `e:${e.source}|${e.target}|${e.type}` } });
+  });
   if (add.length) {
     const eles = cy.add(add);
     eles.nodes().style('opacity', 0).animate({ style: { opacity: 1 } }, { duration: 500 });
     cy.layout({ name: 'cose', animate: true, animationDuration: 600, randomize: false, fit: true, padding: 30, nodeRepulsion: 9000, idealEdgeLength: 55, numIter: 600 }).run();
     setTimeout(() => cy.nodes('.fresh').removeClass('fresh'), 2200);
   }
-  $('graph-note').textContent = `${g.nodes.length} nodes · ${g.edges.length} edges${g.capped ? ' (capped)' : ''}`;
+  noteText = `${cy.nodes().length} nodes · ${cy.edges().length} edges${g.capped ? ' (capped)' : ''}`;
+  $('graph-note').textContent = noteText;
+}
+
+async function refreshGraph() {
+  if (!currentInv) return;
+  let g;
+  try { g = await api(`/api/investigations/${currentInv}/graph`); } catch (e) { banner(e.message); return; }
+  fullGraph = g; applyGraph(g, Infinity);
 }
 function scheduleGraph() { clearTimeout(graphTimer); graphTimer = setTimeout(() => refreshGraph(), 700); }
 
 async function focusNode(id) {
   let n = cy.getElementById(id);
-  if (!n || n.empty()) { await refreshGraph(); n = cy.getElementById(id); }
+  if ((!n || n.empty()) && !player) { await refreshGraph(); n = cy.getElementById(id); }
   if (n && !n.empty()) {
     cy.nodes().removeClass('focus'); n.addClass('focus');
     cy.animate({ center: { eles: n }, zoom: Math.max(cy.zoom(), 1.1) }, { duration: 450 });
@@ -142,14 +185,17 @@ async function inspect(id) {
   box.classList.remove('hidden');
 }
 
-/* ---------- live stream ---------- */
+/* ---------- steps and findings ---------- */
 function addStep(s) {
   stepCount = Math.max(stepCount, s.seq);
   $('step-count').textContent = `${stepCount} step${stepCount === 1 ? '' : 's'}`;
-  const li = el('li', (s.ok ? '' : 'err ') + (WRITERS.has(s.tool) ? 'write' : ''));
+  const meta = TOOLS[s.tool] || { label: s.tool, kind: 'read' };
+  const li = el('li', `k-${meta.kind}${s.ok ? '' : ' err'}`);
+  const head = el('div', 'head');
+  head.append(el('span', 'idx', String(s.seq).padStart(2, '0')), el('span', 'label', meta.label));
+  if (!s.ok) head.append(el('span', 'rej', 'rejected'));
   const args = Object.entries(s.args || {}).map(([k, v]) => `${k}=${Array.isArray(v) ? `[${v.length}]` : String(v).slice(0, 28)}`).join(', ');
-  const t = el('div', 't'); const b = el('b', '', String(s.seq).padStart(2, '0')); t.append(b, `${s.tool}(${args})${s.ok ? '' : '  ⚠ rejected'}`);
-  li.append(t, el('div', 'why', s.reason || ''), el('div', 'res', s.summary || ''));
+  li.append(head, el('div', 'call', `${s.tool}(${args})`), el('div', 'why', s.reason || ''), el('div', 'res', s.summary || ''));
   li.onclick = () => { const a = Object.values(s.args || {}).flat().find((v) => typeof v === 'string' && /^(ACC|TX|DEV)-/.test(v)); if (a) focusNode(a); };
   $('steps').append(li); $('steps').scrollTop = 1e9;
 }
@@ -160,6 +206,7 @@ function addFinding(kind, f) {
   $('findings').append(d);
 }
 
+/* ---------- live stream (a run that is in progress) ---------- */
 function openStream(inv) {
   if (es) es.close();
   es = new EventSource(`/api/investigations/${inv}/stream`);
@@ -175,18 +222,88 @@ function openStream(inv) {
     $('run').disabled = readonly;
     setStatus(d.status === 'finished' ? `Finished. ${d.summary || ''}` : d.status === 'failed' ? `Investigation failed: ${d.summary || ''}` : `Stopped (${d.status}). ${d.summary || ''}`, d.status === 'finished' ? 'ok' : 'err');
     $('make-report').disabled = d.status === 'failed' || readonly;
+    $('replay').disabled = false;
     await refreshGraph();
+    await loadPast();
+    await showSummary(currentInv, null);
     health();
   });
 }
 
 function resetView() {
+  stopPlayer();
   if (es) { es.close(); es = null; }
   $('steps').innerHTML = ''; $('findings').innerHTML = ''; stepCount = 0; $('step-count').textContent = '0 steps';
-  cy.elements().remove(); $('graph-note').textContent = ''; $('inspector').classList.add('hidden');
+  if (cy) cy.elements().remove(); noteText = ''; $('graph-note').textContent = ''; $('inspector').classList.add('hidden'); fullGraph = null;
   $('report').className = 'report muted'; $('report').textContent = 'The Reporter runs as a separate process. It reads only the graph, never the Investigator\'s memory.';
   ['dl-md', 'dl-json'].forEach((i) => $('' + i).classList.add('hidden'));
   $('make-report').disabled = true; currentReport = null; $('recalled').classList.add('hidden');
+  $('summary').classList.add('hidden'); $('summary').innerHTML = '';
+  $('replay').disabled = true; $('skip').disabled = true;
+}
+
+/* ---------- summary bar ---------- */
+async function showSummary(inv, rep) {
+  const meta = pastMeta[inv] || {}, tx = meta.tx_id || $('tx').value.trim();
+  let amount = null, score = null;
+  try { const t = await api('/api/node/' + encodeURIComponent(tx)); amount = t.props.amount; score = t.props.monitor_score; } catch (e) { /* optional */ }
+  const nEv = $('findings').querySelectorAll('.finding:not(.pattern)').length, nPa = $('findings').querySelectorAll('.finding.pattern').length;
+  const box = $('summary'); box.innerHTML = '';
+  const chip = (k, v) => { const c = el('span', 'chip'); c.append(el('em', '', k), el('b', '', String(v))); return c; };
+  box.append(chip('Alert', tx));
+  if (amount != null) box.append(chip('Amount', Number(amount).toLocaleString()));
+  if (score != null) box.append(chip('Alert score', score));
+  box.append(chip('Steps', stepCount), chip('Evidence', nEv), chip('Patterns', nPa));
+  if (rep) { const r = el('span', 'chip rec ' + rep.recommendation); r.append(el('em', '', 'Recommendation'), el('b', '', `${rep.recommendation} · ${Number(rep.confidence).toFixed(2)}`)); box.append(r); }
+  if (meta.recorded) box.append(el('span', 'chip src', `recorded run${meta.model ? ' · ' + meta.model : ''}`));
+  else if (meta.model) box.append(el('span', 'chip src', meta.model));
+  box.classList.remove('hidden');
+}
+
+/* ---------- paced replay of a finished investigation ---------- */
+function stopPlayer() { if (player) { clearTimeout(player.timer); player = null; } if ($('skip')) $('skip').disabled = true; }
+
+async function completeReplay(p) {
+  if (player !== p) return;
+  clearTimeout(p.timer);
+  const { tr, byStep, inv } = p;
+  for (let j = p.i; j < tr.steps.length; j++) { const s = tr.steps[j]; addStep(s); (byStep[s.id] || []).forEach(([k, f]) => addFinding(k, f)); }
+  p.i = tr.steps.length;
+  applyGraph(fullGraph, Infinity);
+  player = null; $('skip').disabled = true; $('replay').disabled = false;
+  setStatus(tr.status === 'finished' ? `Finished. ${tr.summary || ''}` : tr.status === 'failed' ? `Investigation failed: ${tr.summary || ''}` : `Stopped (${tr.status}). ${tr.summary || ''}`, tr.status === 'finished' ? 'ok' : 'err');
+  const rid = ((pastMeta[inv] || {}).reports || [])[0];
+  let rep = null;
+  if (rid) { try { rep = await api('/api/reports/' + rid); currentReport = rep; renderReport(rep); } catch (e) { /* none */ } }
+  $('make-report').disabled = readonly || tr.status === 'failed';
+  await showSummary(inv, rep);
+}
+
+async function playRun(inv) {
+  resetView(); currentInv = inv; banner('');
+  setStatus(`Loading ${inv} from the graph…`);
+  let tr, g;
+  try { [tr, g] = await Promise.all([api(`/api/investigations/${inv}/trace`), api(`/api/investigations/${inv}/graph`)]); }
+  catch (e) { setStatus(e.message, 'err'); banner(e.message); return; }
+  await loadRecall(inv);
+  if (tr.status === 'running') { setStatus(`${inv} is still running…`); openStream(inv); refreshGraph(); return; }
+  fullGraph = g;
+  const byStep = {};
+  tr.evidence.forEach((f) => (byStep[f.step] = byStep[f.step] || []).push(['evidence', f]));
+  tr.patterns.forEach((f) => (byStep[f.step] = byStep[f.step] || []).push(['pattern', f]));
+  const p = player = { timer: null, i: 0, tr, byStep, inv };
+  $('replay').disabled = false; $('skip').disabled = false;
+  const tick = () => {
+    if (player !== p) return;
+    if (p.i >= tr.steps.length) { completeReplay(p); return; }
+    const s = tr.steps[p.i++], fs = byStep[s.id] || [];
+    addStep(s); fs.forEach(([k, f]) => addFinding(k, f));
+    applyGraph(fullGraph, s.seq);
+    setStatus(`Replaying ${inv} · step ${s.seq} of ${tr.steps.length}`);
+    p.timer = setTimeout(tick, fs.length || WRITERS.has(s.tool) ? PACE.write : PACE.step);
+  };
+  setStatus(`Replaying ${inv} · ${tr.steps.length} steps`);
+  tick();
 }
 
 /* ---------- actions ---------- */
@@ -208,7 +325,7 @@ async function loadRecall(inv) {
     const rc = await api(`/api/investigations/${inv}/memory`);
     const box = $('recalled');
     if (rc.recalled && rc.recalled.length) {
-      box.innerHTML = ''; box.append(el('b', '', 'Recalled prior cases'));
+      box.innerHTML = ''; box.append(el('b', '', 'Recalled prior cases (memory)'));
       rc.recalled.forEach((c) => box.append(el('div', '', '• ' + c)));
       box.classList.remove('hidden');
     }
@@ -220,7 +337,7 @@ async function makeReport() {
   $('report').className = 'report muted'; $('report').textContent = 'Reading the evidence trail from the graph and drafting the report…';
   try {
     const rep = await api(`/api/investigations/${currentInv}/report`, { method: 'POST' });
-    currentReport = rep; renderReport(rep); await refreshGraph();
+    currentReport = rep; renderReport(rep); await refreshGraph(); await loadPast(); await showSummary(currentInv, rep);
   } catch (e) { $('report').className = 'report'; $('report').textContent = e.message; banner(e.message); }
   btn.textContent = 'Regenerate report'; btn.disabled = false;
 }
@@ -241,18 +358,19 @@ function renderReport(rep) {
 async function loadPast() {
   try {
     const list = await api('/api/investigations');
-    const sel = $('past'); sel.length = 1;
-    list.forEach((i) => { const o = el('option', '', `${i.id} · ${i.tx_id} · ${i.status}${i.reports.length ? ' · report' : ''}${i.recorded ? ' · recorded run' : ''}`); o.value = i.id; o.dataset.report = i.reports[0] || ''; sel.append(o); });
+    const sel = $('past'), keep = sel.value; sel.length = 1; pastMeta = {};
+    list.forEach((i) => {
+      pastMeta[i.id] = i;
+      const o = el('option', '', `${i.id} · ${i.tx_id} · ${i.status}${i.reports.length ? ' · report' : ''}${i.recorded ? ' · recorded run' : ''}`);
+      o.value = i.id; o.dataset.report = i.reports[0] || ''; sel.append(o);
+    });
+    if (keep && pastMeta[keep]) sel.value = keep;
   } catch (e) { /* ignore */ }
 }
 
 async function openPast() {
-  const sel = $('past'); const id = sel.value; if (!id) return;
-  const rpt = sel.selectedOptions[0].dataset.report;
-  resetView(); currentInv = id; $('make-report').disabled = readonly;
-  setStatus(`Replaying ${id} from the graph…`);
-  openStream(id); await loadRecall(id); await refreshGraph();
-  if (rpt) { try { const rep = await api('/api/reports/' + rpt); currentReport = rep; renderReport(rep); } catch (e) { /* none */ } }
+  const id = $('past').value; if (!id) return;
+  await playRun(id);
 }
 
 async function resetData() {
@@ -260,14 +378,16 @@ async function resetData() {
   const b = $('reset'); b.disabled = true; b.textContent = 'Resetting…';
   try { const r = await api('/api/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ size: 'demo' }) }); resetView(); currentInv = null; setStatus(r.message, 'ok'); banner(''); }
   catch (e) { setStatus(e.message, 'err'); banner(e.message); }
-  b.disabled = false; b.textContent = 'Reset demo data'; await health(); loadPast();
+  b.disabled = false; b.textContent = 'Reset data'; await health(); loadPast();
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
   initGraph();
   $('run').onclick = run; $('make-report').onclick = makeReport; $('reset').onclick = resetData; $('past').onchange = openPast;
+  $('replay').onclick = () => { if (currentInv) playRun(currentInv); };
+  $('skip').onclick = () => { if (player) completeReplay(player); };
   $('tx').addEventListener('keydown', (e) => { if (e.key === 'Enter') run(); });
   await health(); await loadPast();
-  if (readonly && $('past').options.length > 1) { $('past').selectedIndex = 1; openPast(); }  // land on the recorded run
+  if (readonly && $('past').options.length > 1) { $('past').selectedIndex = 1; openPast(); }  // land on the recorded run and play it
   setInterval(health, 20000);
 });

@@ -10,7 +10,7 @@ import threading
 import time
 import urllib.request
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -27,6 +27,52 @@ app = FastAPI(title="VedaTrace")
 JOBS: dict = {}  # investigation id -> {"proc", "log", "done", "rc"}
 JOB_LOCK = threading.Lock()
 READONLY = os.environ.get("VEDATRACE_READONLY") == "1"  # public replay deployment: no LLM calls, no resets
+
+
+RESP_CACHE: dict = {}  # read-only replay: the recorded run never changes, so GET responses are cached (a remote FalkorDB costs ~1 s per query)
+NO_CACHE = ("/api/health",)
+
+
+@app.middleware("http")
+async def readonly_cache(request: Request, call_next):
+    path = request.url.path
+    if not READONLY or request.method != "GET" or not path.startswith("/api/") or path in NO_CACHE or path.endswith("/stream") or path.endswith("/download"):
+        return await call_next(request)
+    key = path + "?" + request.url.query
+    hit = RESP_CACHE.get(key)
+    if hit:
+        return Response(content=hit[0], media_type=hit[1])
+    resp = await call_next(request)
+    if resp.status_code != 200:
+        return resp
+    body = b"".join([chunk async for chunk in resp.body_iterator])
+    media = resp.media_type or "application/json"
+    RESP_CACHE[key] = (body, media)
+    return Response(content=body, media_type=media)
+
+
+def _prewarm():
+    """Fill the cache in the background after startup so the first visitor does not wait for the database round trips."""
+    try:
+        from fastapi.testclient import TestClient
+        c = TestClient(app)
+        runs = c.get("/api/investigations").json()
+        for r in runs if isinstance(runs, list) else []:
+            inv = r["id"]
+            c.get(f"/api/investigations/{inv}/trace"); c.get(f"/api/investigations/{inv}/memory")
+            g = c.get(f"/api/investigations/{inv}/graph").json()
+            for rid in r.get("reports", []):
+                c.get(f"/api/reports/{rid}")
+            for n in g.get("nodes", []):
+                c.get(f"/api/node/{n['id']}")
+    except Exception as e:  # never block or crash the app because of warming
+        print("prewarm skipped:", type(e).__name__, e)
+
+
+@app.on_event("startup")
+def _start_prewarm():
+    if READONLY:
+        threading.Thread(target=_prewarm, daemon=True).start()
 
 
 def deny_if_readonly():
@@ -150,6 +196,21 @@ def snapshot(inv, since_seq, since_ev, since_pat):
             "RETURN p.id, p.pattern_type, p.summary, p.confidence, s.id ORDER BY toInteger(substring(p.id,4))", {"i": inv, "n": since_pat})
     st = q("MATCH (i:Investigation {id:$i}) RETURN i.status, i.summary, i.steps", {"i": inv})
     return steps, ev, pat, (st[0] if st else None)
+
+
+@app.get("/api/investigations/{inv}/trace")
+def trace(inv: str):
+    """The full step/evidence/pattern trail as JSON (same shape as the SSE events); the UI uses it for a paced replay of a finished run."""
+    try:
+        steps, ev, pat, st = snapshot(inv, 0, 0, 0)
+    except Exception as e:
+        return db_error_response(e)
+    if st is None:
+        raise HTTPException(404, "Unknown investigation")
+    return dict(status=st[0], summary=st[1],
+                steps=[dict(id=s[0], seq=s[1], tool=s[2], args=json.loads(s[3] or "{}"), reason=s[4], ok=s[5], summary=s[6]) for s in steps],
+                evidence=[dict(id=e[0], kind=e[1], summary=e[2], confidence=e[3], step=e[4]) for e in ev],
+                patterns=[dict(id=p[0], type=p[1], summary=p[2], confidence=p[3], step=p[4]) for p in pat])
 
 
 @app.get("/api/investigations/{inv}/stream")

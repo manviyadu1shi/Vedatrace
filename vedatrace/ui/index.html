@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VedaTrace — graph-native AML investigation</title>
+<meta name="description" content="Two AI agents investigate suspicious transactions. They never talk to each other; they talk through the FalkorDB graph.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%278%27 cy=%278%27 r=%277%27 fill=%27%234aa3ff%27/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
@@ -12,7 +13,12 @@
 </head>
 <body>
 <header>
-  <div class="brand"><span class="logo">◈</span> VedaTrace <small>two agents, one graph</small></div>
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6cb4ff"/><stop offset="1" stop-color="#a371f7"/></linearGradient></defs>
+      <rect width="32" height="32" rx="8" fill="url(#lg)" opacity=".18"/><g stroke="url(#lg)" stroke-width="1.8" fill="none" stroke-linecap="round"><path d="M8 22 16 9l8 13M8 22h16"/></g>
+      <g fill="#fff"><circle cx="8" cy="22" r="2.6"/><circle cx="16" cy="9" r="2.6"/><circle cx="24" cy="22" r="2.6"/></g></svg>
+    <div><div class="name">VedaTrace</div><div class="tag">Two AI agents investigate. They only talk through the graph.</div></div>
+  </div>
   <div class="badges">
     <span id="b-db" class="badge">FalkorDB …</span>
     <span id="b-llm" class="badge">LLM …</span>
@@ -21,10 +27,24 @@
 </header>
 <div id="banner" class="banner hidden" role="alert"></div>
 
+<section id="hero" aria-label="How VedaTrace works">
+  <ol class="flow">
+    <li><span class="n">1</span><div><b>Alert</b><span>A suspicious transaction that looks innocent on its own.</span></div></li>
+    <li class="arrow" aria-hidden="true">›</li>
+    <li><span class="n">2</span><div><b>Investigator agent</b><span>Explores the graph, chooses its own next step, and records typed Evidence and Patterns, each citing exact nodes.</span></div></li>
+    <li class="arrow" aria-hidden="true">›</li>
+    <li class="hub"><span class="n">◈</span><div><b>FalkorDB graph</b><span>The only thing the agents share. Every finding is a node with provenance edges.</span></div></li>
+    <li class="arrow" aria-hidden="true">›</li>
+    <li><span class="n">3</span><div><b>Reporter agent</b><span>A separate process. Reads only the graph, matches Policies, writes a cited report.</span></div></li>
+  </ol>
+</section>
+
+<section id="summary" class="hidden" aria-label="Investigation summary"></section>
+
 <main>
   <section class="col left">
     <div class="panel" id="case-panel">
-      <h2>1 · Case</h2>
+      <h2><span class="num">1</span>Case</h2>
       <label for="tx">Alerted transaction</label>
       <div class="row">
         <input id="tx" value="TX-FLAGSHIP" spellcheck="false" autocomplete="off">
@@ -32,20 +52,24 @@
       </div>
       <div class="row small">
         <select id="past" title="Load a previous investigation"><option value="">Previous investigations…</option></select>
-        <button id="reset" class="ghost" title="Drop and reseed the graph">Reset demo data</button>
+      </div>
+      <div class="row small" id="player-row">
+        <button id="replay" class="ghost" disabled title="Replay the selected investigation step by step">▶ Replay</button>
+        <button id="skip" class="ghost" disabled title="Jump to the end of the replay">⏭ Skip</button>
+        <button id="reset" class="ghost" title="Drop and reseed the graph">Reset data</button>
       </div>
       <div id="case-status" class="status">Idle. The Investigator will choose its own steps.</div>
     </div>
     <div class="panel grow" id="steps-panel">
-      <h2>2 · Live investigation <span id="step-count" class="pill">0 steps</span></h2>
-      <ol id="steps" class="steps"></ol>
+      <h2><span class="num">2</span>Investigation <span id="step-count" class="pill">0 steps</span></h2>
       <div id="recalled" class="recalled hidden"></div>
+      <ol id="steps" class="steps"></ol>
     </div>
   </section>
 
   <section class="col mid">
     <div class="panel grow graph-panel">
-      <h2>3 · Evidence graph <span id="graph-note" class="muted"></span></h2>
+      <h2><span class="num">3</span>Evidence graph <span id="graph-note" class="muted"></span></h2>
       <div id="cy"></div>
       <div class="legend" id="legend"></div>
       <div id="inspector" class="inspector hidden"></div>
@@ -54,7 +78,7 @@
 
   <section class="col right">
     <div class="panel grow" id="report-panel">
-      <h2>4 · Report</h2>
+      <h2><span class="num">4</span>Report</h2>
       <div class="row">
         <button id="make-report" class="primary" disabled>Generate report</button>
         <a id="dl-md" class="btn hidden" href="#">⬇ Markdown</a>
@@ -66,6 +90,14 @@
     </div>
   </section>
 </main>
+
+<footer>
+  <span>Built for <b>Graph Hacks</b> · WeMakeDevs × FalkorDB</span>
+  <span class="sep">·</span>
+  <span>Graph database: <b>FalkorDB</b></span>
+  <span class="sep">·</span>
+  <span>Decision support only. A human analyst makes the final call.</span>
+</footer>
 <script src="/static/app.js"></script>
 </body>
 </html>

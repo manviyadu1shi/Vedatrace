@@ -120,3 +120,9 @@ Note: Reporter runs overwrite the tracked `vedatrace/reports/RPT-1.*`; the commi
 - Verified (deployed container, headless Edge): UI opens on INV-1, "Recalled prior cases" card, badges "replay · no LLM calls" / "memory · shown in recording", write buttons disabled, 0 console errors, POST /api/investigations /report /reset -> 403.
 - Honest sample sizes: Flash-Lite memory-off ~12 runs, shared-device check never passed; memory-on 2 completed runs, shared device found 2/2, all three structures 1/2 (n too small to claim memory is the cause).
 - NOT done: Anthropic provider (no key), failure-mode checks, full `/demo-verify`, the owner tasks (commit/push, deploy Space, video, submission text).
+
+## UI polish + cloud deployment prep, 2026-10-17
+- UI redesign (ids unchanged): how-it-works strip, result summary bar, colour-coded step cards with readable tool names, paced replay of a finished run (steps + graph growth, Replay / Skip buttons, auto-plays in read-only mode), hover labels on the graph, footer with the human-decides disclaimer. New read-only endpoint `GET /api/investigations/{id}/trace` (same shape as the SSE events).
+- Read-only mode caches GET responses (the recorded run never changes) and pre-warms the cache at startup, because a remote FalkorDB costs ~1 s per query: trace/graph/report went from 5-7 s to ~0.2 s. Writes still 403, report download keeps its attachment header.
+- FalkorDB Cloud: free instance (AWS ap-south-1) populated with the seed + recording (11,253 nodes, ~10 MB of 100 MB). App verified against it in read-only mode with headless Edge: 27 steps / 45 nodes / 88 edges / 80 citations, 0 console errors. Tests must be run with FALKORDB_HOST=localhost FALKORDB_PORT=6380 FALKORDB_USERNAME= FALKORDB_PASSWORD= while `.env` points at the cloud, or they would touch the cloud graph.
+- Not yet done: Render deploy (owner), video, submission text.
