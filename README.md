@@ -185,3 +185,19 @@ vedatrace/
   tests/   test_seed.py test_tools.py test_no_cheating.py test_e2e.py e2e_checks.py
   run_demo.py
 ```
+
+## Layman's understanding for VedaTrace
+
+> A single bank transfer can look perfectly normal on its own. The suspicious part is what happens *around* it: where the money goes next, whether it comes back, who shares a device with whom. VedaTrace follows those connections automatically.
+>
+> **Think of a detective and a report writer.** If they simply talk, the writer can only say "the detective told me", and nothing can be checked later. Instead, the detective is not allowed to speak to the writer. Every finding must be pinned to a shared case board **with the receipts attached**, e.g. "Money split into 8 transfers, see transactions #1041–#1048." The writer reads only the board and writes the report from it, so every claim has a paper trail: report → finding → receipts.
+>
+> That is VedaTrace. The two AI agents never talk; the graph database (FalkorDB) is the case board.
+>
+> 1. The board starts with raw facts only: accounts, transactions, devices and their links. Nothing is labelled as fraud.
+> 2. The **Investigator** asks the board questions one at a time (*Where did the money go next? Does it come back? Who else used this device?*) and pins what it finds as Evidence. Code checks each claim against the board before the pin sticks; unsupported claims are rejected.
+> 3. The Investigator exits. Only the board remains.
+> 4. The **Reporter**, a separate process, is given just an investigation ID, reads the board, and writes a recommendation such as *ESCALATE*. Every citation points to a real node.
+> 5. A human analyst makes the final call.
+>
+> **Why:** a conversation between two AIs cannot be audited. A board with receipts attached can.
