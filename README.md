@@ -71,6 +71,8 @@ flowchart LR
 | Report | `Report`, `VIOLATES` edges, `CITES` edges | Reporter |
 | Memory | `PriorCase` (recalled cases), case store, Graphiti graph | Memory layer |
 
+FalkorDB holds three graphs: `vedatrace` (everything in the diagram above, including the recalled `PriorCase` nodes), `vedatrace_memory` (the case store used for recall) and `vedatrace_graphiti` (Graphiti's own memory graph; not in the slim deploy image).
+
 `Evidence` can also be `SUPPORTED_BY` an `Account` or a `Device`, not only a `Transaction`. Every agent decision starts from a graph query. The Investigator's tools are parameterised Cypher, for example:
 
 ```cypher
