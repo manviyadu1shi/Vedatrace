@@ -4,7 +4,9 @@
 
 Built for **Graph Hacks (WeMakeDevs × FalkorDB)** Tracks: *01 Agents That Act on Connected Data* (primary), *02 Agent Memory and Coordination*.
 
-**Live demo:** https://vedatrace.onrender.com (read-only replay of a recorded run; the free server sleeps when idle, so the first load can take about a minute).
+**Live demo:** https://vedatrace.onrender.com (read-only replay of a recorded run; the free server sleeps when idle, so the first load can take about a minute). The site is deployed on Render and backed by a **FalkorDB Cloud** instance: every read, write, trail, report and memory record lives in that cloud graph.
+
+![FalkorDB Cloud instance used by the deployed app: FalkorDB Free, Running, AWS ap-south-1, Healthy](docs/falkordb-cloud.png)
 
 | Agent | What it does | Reads | Writes |
 |---|---|---|---|
@@ -41,6 +43,51 @@ flowchart LR
 
 Why a graph for coordination: the Reporter can run hours later, on another machine, and still reconstruct *what was examined, in what order, why, and which exact nodes support each claim*, because that is all stored as nodes and edges, not in an agent's context window.
 
+## Graph model (what is in FalkorDB and how the agents query it)
+
+```mermaid
+flowchart LR
+  Customer -- OWNS --> Account
+  Account -- USED_DEVICE --> Device
+  Account -- SENT --> Transaction
+  Transaction -- TO --> Account
+  Investigation -- HAS_STEP --> Step
+  Step -- EXAMINED --> Account
+  Step -- PRODUCED --> Evidence
+  Step -- PRODUCED --> Pattern
+  Evidence -- SUPPORTED_BY --> Transaction
+  Pattern -- BACKED_BY --> Evidence
+  Pattern -- VIOLATES --> Policy
+  Report -- ABOUT --> Investigation
+  Report -- CITES --> Evidence
+  Investigation -- RECALLED --> PriorCase
+  Report -- CITES --> PriorCase
+```
+
+| Layer | Nodes | Written by |
+|---|---|---|
+| Raw facts (seeded) | `Customer`, `Account`, `Device`, `Transaction`, `Policy` | `seed/build_graph.py` (never any Evidence, Pattern or Report) |
+| Investigation trail | `Investigation`, `Step`, `Evidence`, `Pattern` | Investigator |
+| Report | `Report`, `VIOLATES` edges, `CITES` edges | Reporter |
+| Memory | `PriorCase` (recalled cases), case store, Graphiti graph | Memory layer |
+
+`Evidence` can also be `SUPPORTED_BY` an `Account` or a `Device`, not only a `Transaction`. Every agent decision starts from a graph query. The Investigator's tools are parameterised Cypher, for example:
+
+```cypher
+// shared device: who else uses the devices of this account?
+MATCH (me:Account {id:$id})-[:USED_DEVICE]->(d:Device)<-[:USED_DEVICE]-(o:Account)
+MATCH (c:Customer)-[:OWNS]->(o) RETURN d.id, o.id, c.id
+
+// rapid fan-out: all outgoing transfers of one account in time order
+MATCH (:Account {id:$id})-[:SENT]->(t:Transaction)-[:TO]->(b:Account)
+RETURN t.id, b.id, t.amount, t.ts ORDER BY t.ts
+
+// circular flow: a money path that returns to the start account
+MATCH p=(a:Account {id:$id})-[:SENT|TO*lo..hi]->(a) RETURN p   // lo, hi = hop limits chosen by the tool
+```
+
+The Reporter then reads the trail back with queries such as `MATCH (:Investigation {id:$id})-[:HAS_STEP]->(s:Step)-[:PRODUCED]->(e:Evidence) OPTIONAL MATCH (e)-[:SUPPORTED_BY]->(n) RETURN ...`. Its report is built only from what those queries return, so the graph, not a prompt, carries the case from one agent to the other.
+
 ## The demo case
 `TX-FLAGSHIP` looks ordinary (8,400, moderate, flagged only by a weak monitoring score). The fraud is only visible through several traversals, and the seed (`seed/build_graph.py`, fixed `random.seed(42)`) hides it among realistic noise:
 
@@ -72,7 +119,7 @@ This starts FalkorDB **and** the app in one container, seeds the deterministic d
 Requirements: Python 3.11+, Docker, and an LLM. **Free options:** a Google Gemini key (aistudio.google.com/apikey, no card) or local [Ollama](https://ollama.com). Paid/other: any OpenAI-compatible key, or an Anthropic key.
 
 ```bash
-git clone … && cd vedatrace-kit
+git clone https://github.com/manviyadu1shi/Vedatrace.git && cd Vedatrace
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 docker run -d --name vedatrace-falkordb -p 6379:6379 -p 3000:3000 falkordb/falkordb:latest   # 3000 = FalkorDB Browser
 
